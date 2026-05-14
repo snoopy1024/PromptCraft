@@ -44,7 +44,8 @@ export default function ParamPanel() {
   const { currentConversation, setParams } = useStore();
   if (!currentConversation) return null;
 
-  const { params, thinkingEnabled } = currentConversation;
+  const { params } = currentConversation;
+  const thinkingEnabled = currentConversation.thinkingLevel !== 'off';
 
   return (
     <div className="border-t border-gray-100 px-4 pb-3 pt-2">

@@ -1,11 +1,16 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { ArrowUp, Square } from 'lucide-react';
-import { useChat } from '~/hooks/useChat';
+import { ArrowUp, Plus, Square } from 'lucide-react';
+import ChatSettingsPopover from './ChatSettingsPopover';
 
-export default function ChatInput() {
+interface Props {
+  send: (content: string) => void;
+  stop: () => void;
+  isStreaming: boolean;
+}
+
+export default function ChatInput({ send, stop, isStreaming }: Props) {
   const [input, setInput] = useState('');
-  const { send, stop, isStreaming } = useChat();
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -25,37 +30,51 @@ export default function ChatInput() {
   );
 
   return (
-    <div className="bg-white px-4 pb-4 pt-2">
+    <div className="bg-[#fbfaf7] px-3 pb-3 pt-2 sm:px-4">
       <div className="mx-auto max-w-3xl">
-        <div className="flex items-end gap-2 rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2 shadow-sm focus-within:border-gray-300 focus-within:shadow-md transition-shadow">
+        <div className="rounded-[1.35rem] border border-gray-200 bg-white px-4 pb-3 pt-3 shadow-[0_16px_50px_rgba(0,0,0,0.08)] transition-shadow focus-within:border-gray-300 focus-within:shadow-[0_18px_60px_rgba(0,0,0,0.12)]">
           <TextareaAutosize
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="有问题，尽管问"
+            placeholder="输入消息..."
             minRows={1}
-            maxRows={10}
-            className="flex-1 resize-none bg-transparent py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
+            maxRows={12}
+            className="w-full resize-none bg-transparent py-1 text-[15px] leading-6 text-gray-900 outline-none placeholder:text-gray-400"
             autoFocus
           />
-          {isStreaming ? (
+          <div className="mt-2 flex min-h-9 items-center justify-between gap-3">
             <button
-              onClick={stop}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700"
-              title="停止生成"
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              title="添加"
             >
-              <Square size={12} fill="currentColor" />
+              <Plus size={20} />
             </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:bg-gray-300 disabled:text-gray-500"
-              title="发送"
-            >
-              <ArrowUp size={16} strokeWidth={2.5} />
-            </button>
-          )}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <ChatSettingsPopover />
+              {isStreaming ? (
+                <button
+                  type="button"
+                  onClick={stop}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700"
+                  title="停止生成"
+                >
+                  <Square size={12} fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400"
+                  title="发送"
+                >
+                  <ArrowUp size={16} strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -11,7 +11,7 @@ export default function App() {
   }, [loadConversationList]);
 
   return (
-    <div className="flex h-full bg-white text-gray-900">
+    <div className="flex h-full bg-[#fbfaf7] text-gray-900">
       <Sidebar />
       <ChatView />
     </div>

@@ -4,8 +4,8 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  background: #ffffff;
-  color: #1a1a1a;
+  background: #fbfaf7;
+  color: #2f2f2d;
 }
 
 /* Streaming cursor animation */
@@ -68,12 +68,157 @@ html, body, #root {
   background: #9ca3af;
 }
 
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-auto-hide {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.scrollbar-auto-hide.scrollbar-active {
+  scrollbar-color: #d1d5db transparent;
+}
+
+.scrollbar-auto-hide.scrollbar-active::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
 /* Code blocks */
 .prose pre {
-  background-color: #1e1e2e !important;
-  color: #cdd6f4;
-  border: 1px solid #e5e7eb;
+  background-color: #ffffff !important;
+  color: #1f2933;
+  border: 1px solid #dedbd4;
   border-radius: 0.75rem;
+  margin: 1.25rem 0 0.625rem;
+  padding: 2.75rem 1.25rem 1.25rem;
+  position: relative;
+  overflow-x: auto;
+  box-shadow: none;
+}
+
+.prose > :last-child {
+  margin-bottom: 0.625rem;
+}
+
+.prose pre .code-copy-button {
+  align-items: center;
+  background: #f3f1ec;
+  border-radius: 0.5rem;
+  color: #2f2f2d;
+  display: flex;
+  height: 2rem;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
+  transition: background-color 150ms ease, opacity 150ms ease;
+  width: 2rem;
+  z-index: 1;
+}
+
+.prose pre:hover .code-copy-button,
+.prose pre:focus-within .code-copy-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.prose pre .code-copy-button:hover {
+  background: #e9e6df;
+}
+
+.prose pre .code-copy-button::after {
+  background: #2f2f2d;
+  border-radius: 0.45rem;
+  color: #ffffff;
+  content: attr(data-tooltip);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0;
+  padding: 0.45rem 0.55rem;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  transform: translateY(-2px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  white-space: nowrap;
+}
+
+.prose pre .code-copy-button:hover::after,
+.prose pre .code-copy-button:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.prose pre code {
+  background: transparent !important;
+  color: inherit;
+  display: block;
+  font-size: 0.95em;
+  line-height: 1.65;
+  overflow: visible;
+  padding: 0 !important;
+}
+
+.prose pre code.hljs {
+  padding: 0 !important;
+}
+
+.prose pre code[class*="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 1rem;
+  left: 1.25rem;
+  color: #77736c;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+.prose pre code.language-bash::before,
+.prose pre code.language-shell::before,
+.prose pre code.language-sh::before {
+  content: "bash";
+}
+
+.prose pre code.language-json::before {
+  content: "json";
+}
+
+.prose pre code.language-ts::before,
+.prose pre code.language-typescript::before {
+  content: "typescript";
+}
+
+.prose pre code.language-js::before,
+.prose pre code.language-javascript::before {
+  content: "javascript";
 }
 
 .prose code {

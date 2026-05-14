@@ -1,15 +1,16 @@
 import Header from './Header';
-import SystemPrompt from './SystemPrompt';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
+import { useChat } from '~/hooks/useChat';
 
 export default function ChatView() {
+  const chat = useChat();
+
   return (
-    <main className="flex flex-1 flex-col overflow-hidden">
+    <main className="flex flex-1 flex-col overflow-hidden bg-[#fbfaf7]">
       <Header />
-      <SystemPrompt />
-      <MessageList />
-      <ChatInput />
+      <MessageList onRetry={chat.retry} />
+      <ChatInput send={chat.send} stop={chat.stop} isStreaming={chat.isStreaming} />
     </main>
   );
 }

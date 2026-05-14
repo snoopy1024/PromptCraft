@@ -4,11 +4,12 @@ import OpenAI from 'openai';
 export const chatRouter = Router();
 
 chatRouter.post('/', async (req, res) => {
-  const { messages, model, systemPrompt, params, thinkingEnabled } = req.body as {
+  const { messages, model, systemPrompt, params, thinkingEnabled, thinkingLevel } = req.body as {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
     model: string;
     systemPrompt?: string;
     thinkingEnabled?: boolean;
+    thinkingLevel?: 'off' | 'high' | 'max';
     params?: {
       temperature?: number;
       top_p?: number;
@@ -40,7 +41,7 @@ chatRouter.post('/', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
-  const thinking = thinkingEnabled !== false;
+  const thinking = thinkingLevel ? thinkingLevel !== 'off' : thinkingEnabled !== false;
 
   try {
     const requestBody: Record<string, unknown> = {
@@ -48,6 +49,7 @@ chatRouter.post('/', async (req, res) => {
       messages: fullMessages,
       stream: true,
       max_tokens: params?.max_tokens,
+      stream_options: { include_usage: true },
       thinking: { type: thinking ? 'enabled' : 'disabled' },
     };
 
@@ -60,6 +62,10 @@ chatRouter.post('/', async (req, res) => {
     const stream = await (client.chat.completions.create as Function)(requestBody);
 
     for await (const chunk of stream) {
+      if (chunk.usage) {
+        res.write(`data: ${JSON.stringify({ type: 'usage', usage: chunk.usage })}\n\n`);
+      }
+
       const delta = chunk.choices?.[0]?.delta;
       if (!delta) continue;
 
@@ -72,9 +78,6 @@ chatRouter.post('/', async (req, res) => {
         res.write(`data: ${JSON.stringify({ type: 'content', content: delta.content })}\n\n`);
       }
 
-      if (chunk.usage) {
-        res.write(`data: ${JSON.stringify({ type: 'usage', usage: chunk.usage })}\n\n`);
-      }
     }
 
     res.write('data: [DONE]\n\n');

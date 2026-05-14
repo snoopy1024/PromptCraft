@@ -24,18 +24,18 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-gray-50">
+    <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-[#eeeae2] bg-[#fbfaf7]">
       <div className="flex items-center justify-between p-3">
         <button
           onClick={newConversation}
-          className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900"
+          className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-[#efede7] hover:text-gray-900"
         >
           <Plus size={16} />
           新对话
         </button>
         <button
           onClick={() => setSidebarOpen(false)}
-          className="ml-2 rounded-lg p-2 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+          className="ml-2 rounded-lg p-2 text-gray-400 hover:bg-[#efede7] hover:text-gray-600"
         >
           <PanelLeftClose size={18} />
         </button>
@@ -47,8 +47,8 @@ export default function Sidebar() {
             key={conv.id}
             className={`group mb-0.5 flex cursor-pointer items-center rounded-lg px-3 py-2.5 text-sm transition-colors ${
               currentConversation?.id === conv.id
-                ? 'bg-gray-200 text-gray-900'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                ? 'bg-[#e9e6df] text-gray-900'
+                : 'text-gray-600 hover:bg-[#efede7] hover:text-gray-900'
             }`}
             onClick={() => loadConversation(conv.id)}
           >
@@ -59,7 +59,7 @@ export default function Sidebar() {
                 e.stopPropagation();
                 deleteConversation(conv.id);
               }}
-              className="ml-1 rounded p-1 opacity-0 transition-opacity hover:bg-gray-300 hover:text-red-500 group-hover:opacity-100"
+              className="ml-1 rounded p-1 opacity-0 transition-opacity hover:bg-[#e2ded5] hover:text-red-500 group-hover:opacity-100"
             >
               <Trash2 size={14} />
             </button>

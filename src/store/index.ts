@@ -6,6 +6,20 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   reasoning?: string;
+  stats?: MessageStats;
+}
+
+export interface MessageStats {
+  completionTokens?: number;
+  completionEstimated?: boolean;
+  completionDurationMs?: number;
+  completionTokensPerSecond?: number;
+  completionCostCny?: number;
+  reasoningTokens?: number;
+  reasoningEstimated?: boolean;
+  reasoningDurationMs?: number;
+  reasoningTokensPerSecond?: number;
+  reasoningCostCny?: number;
 }
 
 export interface Conversation {
@@ -13,12 +27,14 @@ export interface Conversation {
   title: string;
   model: string;
   systemPrompt: string;
-  thinkingEnabled: boolean;
+  thinkingLevel: ThinkingLevel;
   params: ModelParams;
   messages: Message[];
   createdAt: string;
   updatedAt: string;
 }
+
+export type ThinkingLevel = 'off' | 'high' | 'max';
 
 export interface ModelParams {
   temperature: number;
@@ -44,14 +60,101 @@ const DEFAULT_PARAMS: ModelParams = {
   presence_penalty: 0,
 };
 
+const DEFAULT_MODEL = 'deepseek-v4-flash';
+const DEFAULT_THINKING_LEVEL: ThinkingLevel = 'high';
+const MODEL_SETTINGS_STORAGE_KEY = 'promptcraft:model-settings';
+const LAST_MODEL_STORAGE_KEY = 'promptcraft:last-model';
+
+interface StoredModelSettings {
+  params?: Partial<ModelParams>;
+  thinkingLevel?: ThinkingLevel;
+}
+
+function hasLocalStorage() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function isThinkingLevel(value: unknown): value is ThinkingLevel {
+  return value === 'off' || value === 'high' || value === 'max';
+}
+
+function normalizeParams(params?: Partial<ModelParams>): ModelParams {
+  return { ...DEFAULT_PARAMS, ...(params ?? {}) };
+}
+
+function readSettingsMap(): Record<string, StoredModelSettings> {
+  if (!hasLocalStorage()) return {};
+
+  try {
+    const raw = window.localStorage.getItem(MODEL_SETTINGS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSettingsMap(settings: Record<string, StoredModelSettings>) {
+  if (!hasLocalStorage()) return;
+  window.localStorage.setItem(MODEL_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+}
+
+function readLastModel() {
+  if (!hasLocalStorage()) return DEFAULT_MODEL;
+  return window.localStorage.getItem(LAST_MODEL_STORAGE_KEY) || DEFAULT_MODEL;
+}
+
+function writeLastModel(model: string) {
+  if (!hasLocalStorage()) return;
+  window.localStorage.setItem(LAST_MODEL_STORAGE_KEY, model);
+}
+
+function readModelSettings(model: string) {
+  const stored = readSettingsMap()[model];
+  return {
+    params: normalizeParams(stored?.params),
+    thinkingLevel: isThinkingLevel(stored?.thinkingLevel)
+      ? stored.thinkingLevel
+      : DEFAULT_THINKING_LEVEL,
+  };
+}
+
+function writeModelSettings(model: string, settings: { params: ModelParams; thinkingLevel: ThinkingLevel }) {
+  const settingsMap = readSettingsMap();
+  settingsMap[model] = {
+    params: settings.params,
+    thinkingLevel: settings.thinkingLevel,
+  };
+  writeSettingsMap(settingsMap);
+}
+
+function thinkingLevelFromLegacy(conversation: Partial<Conversation> & { thinkingEnabled?: boolean }) {
+  if (isThinkingLevel(conversation.thinkingLevel)) return conversation.thinkingLevel;
+  return conversation.thinkingEnabled === false ? 'off' : DEFAULT_THINKING_LEVEL;
+}
+
+function normalizeConversation(raw: Conversation & { thinkingEnabled?: boolean }): Conversation {
+  return {
+    ...raw,
+    model: raw.model || DEFAULT_MODEL,
+    title: raw.title || '新对话',
+    systemPrompt: raw.systemPrompt || '',
+    thinkingLevel: thinkingLevelFromLegacy(raw),
+    params: normalizeParams(raw.params),
+    messages: raw.messages || [],
+  };
+}
+
 function createNewConversation(): Conversation {
+  const model = readLastModel();
+  const settings = readModelSettings(model);
+
   return {
     id: uuidv4(),
     title: '新对话',
-    model: 'deepseek-v4-flash',
+    model,
     systemPrompt: '',
-    thinkingEnabled: true,
-    params: { ...DEFAULT_PARAMS },
+    thinkingLevel: settings.thinkingLevel,
+    params: settings.params,
     messages: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -64,18 +167,19 @@ interface AppState {
   isStreaming: boolean;
   streamingContent: string;
   streamingReasoning: string;
+  streamingStats: MessageStats;
   sidebarOpen: boolean;
-  settingsOpen: boolean;
 
   setSidebarOpen: (open: boolean) => void;
-  setSettingsOpen: (open: boolean) => void;
+  setTitle: (title: string) => void;
   setModel: (model: string) => void;
   setSystemPrompt: (prompt: string) => void;
-  setThinkingEnabled: (enabled: boolean) => void;
+  setThinkingLevel: (level: ThinkingLevel) => void;
   setParams: (params: Partial<ModelParams>) => void;
   setStreaming: (streaming: boolean) => void;
   appendStreamContent: (content: string) => void;
   appendStreamReasoning: (reasoning: string) => void;
+  setStreamingStats: (stats: MessageStats) => void;
   resetStream: () => void;
 
   newConversation: () => void;
@@ -85,7 +189,8 @@ interface AppState {
   deleteConversation: (id: string) => Promise<void>;
 
   addUserMessage: (content: string) => void;
-  finalizeAssistantMessage: (content: string, reasoning?: string) => void;
+  prepareAssistantRetry: (assistantId: string) => Conversation | null;
+  finalizeAssistantMessage: (content: string, reasoning?: string, stats?: MessageStats) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -94,18 +199,32 @@ export const useStore = create<AppState>((set, get) => ({
   isStreaming: false,
   streamingContent: '',
   streamingReasoning: '',
+  streamingStats: {},
   sidebarOpen: true,
-  settingsOpen: false,
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  setSettingsOpen: (open) => set({ settingsOpen: open }),
 
-  setModel: (model) =>
+  setTitle: (title) =>
     set((s) => ({
       currentConversation: s.currentConversation
-        ? { ...s.currentConversation, model }
+        ? { ...s.currentConversation, title: title || '新对话' }
         : null,
     })),
+
+  setModel: (model) =>
+    set((s) => {
+      if (!s.currentConversation) return {};
+      const settings = readModelSettings(model);
+      writeLastModel(model);
+      return {
+        currentConversation: {
+          ...s.currentConversation,
+          model,
+          params: settings.params,
+          thinkingLevel: settings.thinkingLevel,
+        },
+      };
+    }),
 
   setSystemPrompt: (prompt) =>
     set((s) => ({
@@ -114,29 +233,44 @@ export const useStore = create<AppState>((set, get) => ({
         : null,
     })),
 
-  setThinkingEnabled: (enabled) =>
-    set((s) => ({
-      currentConversation: s.currentConversation
-        ? { ...s.currentConversation, thinkingEnabled: enabled }
-        : null,
-    })),
+  setThinkingLevel: (level) =>
+    set((s) => {
+      if (!s.currentConversation) return {};
+      writeModelSettings(s.currentConversation.model, {
+        params: s.currentConversation.params,
+        thinkingLevel: level,
+      });
+      return {
+        currentConversation: {
+          ...s.currentConversation,
+          thinkingLevel: level,
+        },
+      };
+    }),
 
   setParams: (params) =>
-    set((s) => ({
-      currentConversation: s.currentConversation
-        ? {
-            ...s.currentConversation,
-            params: { ...s.currentConversation.params, ...params },
-          }
-        : null,
-    })),
+    set((s) => {
+      if (!s.currentConversation) return {};
+      const nextParams = { ...s.currentConversation.params, ...params };
+      writeModelSettings(s.currentConversation.model, {
+        params: nextParams,
+        thinkingLevel: s.currentConversation.thinkingLevel,
+      });
+      return {
+        currentConversation: {
+          ...s.currentConversation,
+          params: nextParams,
+        },
+      };
+    }),
 
   setStreaming: (streaming) => set({ isStreaming: streaming }),
   appendStreamContent: (content) =>
     set((s) => ({ streamingContent: s.streamingContent + content })),
   appendStreamReasoning: (reasoning) =>
     set((s) => ({ streamingReasoning: s.streamingReasoning + reasoning })),
-  resetStream: () => set({ streamingContent: '', streamingReasoning: '' }),
+  setStreamingStats: (stats) => set({ streamingStats: stats }),
+  resetStream: () => set({ streamingContent: '', streamingReasoning: '', streamingStats: {} }),
 
   newConversation: () => set({ currentConversation: createNewConversation() }),
 
@@ -150,7 +284,7 @@ export const useStore = create<AppState>((set, get) => ({
     const res = await fetch(`/api/conversations/${id}`);
     if (res.ok) {
       const data = await res.json();
-      set({ currentConversation: data });
+      set({ currentConversation: normalizeConversation(data) });
     }
   },
 
@@ -192,10 +326,37 @@ export const useStore = create<AppState>((set, get) => ({
       };
     }),
 
-  finalizeAssistantMessage: (content, reasoning) =>
+  prepareAssistantRetry: (assistantId) => {
+    const conv = get().currentConversation;
+    if (!conv) return null;
+
+    const assistantIndex = conv.messages.findIndex(
+      (message) => message.id === assistantId && message.role === 'assistant',
+    );
+    if (assistantIndex === -1) return null;
+
+    let userIndex = -1;
+    for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+      if (conv.messages[index].role === 'user') {
+        userIndex = index;
+        break;
+      }
+    }
+    if (userIndex === -1) return null;
+
+    const nextConversation = {
+      ...conv,
+      messages: conv.messages.slice(0, assistantIndex),
+      updatedAt: new Date().toISOString(),
+    };
+    set({ currentConversation: nextConversation });
+    return nextConversation;
+  },
+
+  finalizeAssistantMessage: (content, reasoning, stats) =>
     set((s) => {
       if (!s.currentConversation) return {};
-      const msg: Message = { id: uuidv4(), role: 'assistant', content, reasoning };
+      const msg: Message = { id: uuidv4(), role: 'assistant', content, reasoning, stats };
       return {
         currentConversation: {
           ...s.currentConversation,
