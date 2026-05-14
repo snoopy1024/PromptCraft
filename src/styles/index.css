@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+/* Streaming cursor animation */
+.result-streaming > :not(ol):not(ul):not(pre):last-child::after,
+.result-streaming > pre:last-child code::after {
+  display: inline-block;
+  content: '⬤';
+  width: 12px;
+  height: 12px;
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: normal;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+  font-size: 0.5rem;
+  color: #999;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@supports (selector(:has(*))) {
+  .result-streaming > :is(ul, ol):last-child > li:last-child:not(:has(> :is(ul, ol, pre)))::after {
+    content: '⬤';
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: normal;
+    margin-left: 0.25rem;
+    vertical-align: middle;
+    font-size: 0.5rem;
+    color: #999;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+}
+
+.result-thinking::after {
+  display: inline-block;
+  content: '⬤';
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.5rem;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+  color: #999;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Code blocks */
+.prose pre {
+  background-color: #1e1e2e !important;
+  color: #cdd6f4;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+.prose code {
+  font-size: 0.875em;
+}
+
+.prose :not(pre) > code {
+  background-color: #f3f4f6;
+  color: #1a1a1a;
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+}
+
+/* Markdown table */
+.prose table {
+  border-collapse: collapse;
+}
+.prose th, .prose td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+}
+.prose th {
+  background-color: #f9fafb;
+}
