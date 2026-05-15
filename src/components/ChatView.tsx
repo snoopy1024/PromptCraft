@@ -9,7 +9,7 @@ export default function ChatView() {
   return (
     <main className="flex flex-1 flex-col overflow-hidden bg-[#fbfaf7]">
       <Header />
-      <MessageList onRetry={chat.retry} />
+      <MessageList onRetry={chat.retry} onEditSend={chat.editAndResend} />
       <ChatInput send={chat.send} stop={chat.stop} isStreaming={chat.isStreaming} />
     </main>
   );

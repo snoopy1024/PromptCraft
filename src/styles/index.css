@@ -44,6 +44,8 @@ html, body, #root {
   font-size: 0.5rem;
   margin-left: 0.25rem;
   vertical-align: middle;
+  position: relative;
+  top: -0.5px;
   color: #999;
   animation: pulse 1.5s ease-in-out infinite;
 }

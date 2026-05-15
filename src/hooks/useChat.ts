@@ -207,9 +207,22 @@ export function useChat() {
     [runCompletion],
   );
 
+  const editAndResend = useCallback(
+    async (messageId: string, newContent: string) => {
+      const state = useStore.getState();
+      if (!state.currentConversation || state.isStreaming) return;
+
+      const nextConversation = state.updateUserMessageAndTruncate(messageId, newContent);
+      if (!nextConversation) return;
+
+      await runCompletion(nextConversation);
+    },
+    [runCompletion],
+  );
+
   const stop = useCallback(() => {
     abortRef.current?.abort();
   }, []);
 
-  return { send, retry, stop, isStreaming, currentConversation };
+  return { send, retry, editAndResend, stop, isStreaming, currentConversation };
 }

@@ -5,9 +5,10 @@ import { Zap } from 'lucide-react';
 
 interface Props {
   onRetry: (assistantId: string) => void;
+  onEditSend: (messageId: string, newContent: string) => void;
 }
 
-export default function MessageList({ onRetry }: Props) {
+export default function MessageList({ onRetry, onEditSend }: Props) {
   const {
     currentConversation,
     isStreaming,
@@ -55,7 +56,9 @@ export default function MessageList({ onRetry }: Props) {
               <MessageBubble
                 key={msg.id}
                 message={msg}
+                model={currentConversation.model}
                 onRetry={msg.role === 'assistant' ? () => onRetry(msg.id) : undefined}
+                onEditSend={msg.role === 'user' ? onEditSend : undefined}
               />
             );
           })}
@@ -69,6 +72,7 @@ export default function MessageList({ onRetry }: Props) {
                 reasoning: streamingReasoning || undefined,
                 stats: streamingStats,
               }}
+              model={currentConversation.model}
               isStreaming
             />
           )}

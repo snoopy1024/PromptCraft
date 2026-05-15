@@ -190,6 +190,7 @@ interface AppState {
 
   addUserMessage: (content: string) => void;
   prepareAssistantRetry: (assistantId: string) => Conversation | null;
+  updateUserMessageAndTruncate: (messageId: string, newContent: string) => Conversation | null;
   finalizeAssistantMessage: (content: string, reasoning?: string, stats?: MessageStats) => void;
 }
 
@@ -325,6 +326,21 @@ export const useStore = create<AppState>((set, get) => ({
         },
       };
     }),
+
+  updateUserMessageAndTruncate: (messageId, newContent) => {
+    const conv = get().currentConversation;
+    if (!conv) return null;
+
+    const idx = conv.messages.findIndex((m) => m.id === messageId && m.role === 'user');
+    if (idx === -1) return null;
+
+    const updated = conv.messages.slice(0, idx + 1).map((m) =>
+      m.id === messageId ? { ...m, content: newContent } : m,
+    );
+    const nextConversation = { ...conv, messages: updated, updatedAt: new Date().toISOString() };
+    set({ currentConversation: nextConversation });
+    return nextConversation;
+  },
 
   prepareAssistantRetry: (assistantId) => {
     const conv = get().currentConversation;

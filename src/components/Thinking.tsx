@@ -1,7 +1,6 @@
 import { useState, memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { Lightbulb, ChevronDown, Copy, Check } from 'lucide-react';
+import { Brain, ChevronDown, Copy, Check } from 'lucide-react';
 import type { MessageStats } from '~/store';
-import StatsLine from './StatsLine';
 
 interface Props {
   content: string;
@@ -55,32 +54,26 @@ const Thinking = memo(function Thinking({ content, stats, isStreaming }: Props) 
   if (!content) return null;
 
   return (
-    <div className="group/thinking mb-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1.5 rounded-lg py-1 text-sm text-gray-400 transition-colors hover:text-gray-600"
-        >
-          <span className="relative flex h-[18px] w-[18px] items-center justify-center">
-            <Lightbulb
-              size={16}
-              className="absolute text-gray-400 transition-opacity group-hover/thinking:opacity-0"
-            />
-            <ChevronDown
-              size={16}
-              className={`absolute text-gray-500 opacity-0 transition-all group-hover/thinking:opacity-100 ${
-                expanded ? 'rotate-180' : ''
-              }`}
-            />
-          </span>
-          思考过程
-          {isStreaming && <span className="result-thinking" />}
-        </button>
-
-        <span className="text-xs text-gray-400 opacity-0 transition-opacity group-hover/thinking:opacity-100 group-focus-within/thinking:opacity-100">
-          <StatsLine stats={stats} type="reasoning" />
+    <div className="group/thinking mb-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 rounded-lg py-1 text-sm text-gray-400 transition-colors hover:text-gray-600"
+      >
+        <span className="relative flex h-[18px] w-[18px] items-center justify-center">
+          <Brain
+            size={16}
+            className="absolute text-gray-400 transition-opacity group-hover/thinking:opacity-0"
+          />
+          <ChevronDown
+            size={16}
+            className={`absolute text-gray-500 opacity-0 transition-all group-hover/thinking:opacity-100 ${
+              expanded ? 'rotate-180' : ''
+            }`}
+          />
         </span>
-      </div>
+        思考过程
+        {isStreaming && <span className="result-thinking" />}
+      </button>
 
       {expanded && (
         <div className="group/thinking-box relative mt-3 rounded-xl border border-gray-200 bg-transparent p-4">
@@ -94,7 +87,7 @@ const Thinking = memo(function Thinking({ content, stats, isStreaming }: Props) 
           <div
             ref={scrollRef}
             onScroll={updatePinnedToBottom}
-            className={`scrollbar-auto-hide min-h-28 max-h-[400px] overflow-y-auto pr-0.5 ${
+            className={`scrollbar-auto-hide max-h-[400px] overflow-y-auto pr-0.5 ${
               scrollbarActive ? 'scrollbar-active' : ''
             }`}
           >
