@@ -19,7 +19,7 @@ chatRouter.post('/', async (req, res) => {
 
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'DEEPSEEK_API_KEY not set in .env' });
+    res.status(400).json({ error: '未配置 API 密钥。请在设置中添加 DeepSeek API Key。' });
     return;
   }
 

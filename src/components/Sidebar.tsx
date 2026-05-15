@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { PlusCircle, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Plus } from 'lucide-react';
+import { PlusCircle, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Plus, Settings } from 'lucide-react';
 import { useStore } from '~/store';
+import SettingsModal from './SettingsModal';
 
 interface ContextMenu {
   convId: string;
@@ -24,6 +25,7 @@ export default function Sidebar() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -152,6 +154,19 @@ export default function Sidebar() {
           <p className="px-3 py-8 text-center text-xs text-gray-400">暂无对话记录</p>
         )}
       </div>
+
+      {/* Settings bar */}
+      <div className="border-t border-[#eeeae2] px-2 py-2">
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-gray-500 transition-colors hover:bg-[#efede7] hover:text-gray-700"
+        >
+          <Settings size={16} />
+          设置
+        </button>
+      </div>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {contextMenu && (
         <div
