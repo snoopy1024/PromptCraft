@@ -1,4 +1,5 @@
 import { useStore } from '~/store';
+import MaxTokensField from './MaxTokensField';
 
 interface SliderFieldProps {
   label: string;
@@ -54,7 +55,7 @@ export default function ParamPanel() {
           思考模式下 temperature / top_p 参数不生效
         </p>
       )}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-3">
         <SliderField
           label="Temperature"
           value={params.temperature}
@@ -73,13 +74,12 @@ export default function ParamPanel() {
           disabled={thinkingEnabled}
           onChange={(v) => setParams({ top_p: v })}
         />
-        <SliderField
-          label="Max Tokens"
+      </div>
+      <div className="mt-3">
+        <MaxTokensField
           value={params.max_tokens}
-          min={256}
-          max={65536}
-          step={256}
           onChange={(v) => setParams({ max_tokens: v })}
+          compact
         />
       </div>
     </div>

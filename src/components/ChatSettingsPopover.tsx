@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useStore, type ThinkingLevel } from '~/store';
 import deepSeekIcon from '~/assets/deepseek.png';
+import MaxTokensField from './MaxTokensField';
 
 const MODELS = [
   {
@@ -221,7 +222,7 @@ export default function ChatSettingsPopover() {
                 </button>
 
                 {advancedOpen && (
-                  <div className="space-y-5">
+                  <div className="space-y-7">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
@@ -249,12 +250,8 @@ export default function ChatSettingsPopover() {
                         disabled={thinkingEnabled}
                         onChange={(value) => setParams({ top_p: value })}
                       />
-                      <SliderField
-                        label="Max Tokens"
+                      <MaxTokensField
                         value={params.max_tokens}
-                        min={256}
-                        max={65536}
-                        step={256}
                         onChange={(value) => setParams({ max_tokens: value })}
                       />
                     </div>
