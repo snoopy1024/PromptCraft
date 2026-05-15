@@ -2,8 +2,20 @@
 
 # PromptCraft
 
-一个本地优先的 DeepSeek 对话工作台，用来调试提示词、观察思考过程、记录 Token 指标并管理多轮对话。
+为什么做这个产品？
 
+我的业务里主要使用 DeepSeek 的模型，在开发过程中会有很多模型测试工作，因此需要一个好用的 playground 来测试新模型的效果。
+
+其他 DeepSeek 模型托管平台（Openrouter、硅基流动、阿里云）提供的 playground 很不好用！
+- 不支持自定义 key
+- 模型参数没有适配（例如：V4模型只支持High、Max）
+- 模型部署疑似掺水（我只用 DeepSeek 官网渠道）
+
+因此开发了一个运行在本地的 playground 来调试 DeepSeek 官网渠道的模型效果，同时可以保证 key、Prompt 不会被泄露。
+
+当前只设计了 chatbot 形态，对该产品未来的期望是：一个运行在本地的 Prompt 开发平台，辅助我高效设计 Prompt 来服务业务。
+
+项目持续更新中...
 </div>
 
 PromptCraft 是一个轻量的全栈 Web 应用。前端使用 React 与 Vite，后端使用 Express 作为本地 API 代理；API Key 保存在本机 `.env` 文件中，对话记录保存在本机 `server/data` 目录中，不需要数据库。
