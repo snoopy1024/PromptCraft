@@ -6,6 +6,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   reasoning?: string;
+  model?: string;
   stats?: MessageStats;
 }
 
@@ -187,6 +188,7 @@ interface AppState {
   loadConversationList: () => Promise<void>;
   loadConversation: (id: string) => Promise<void>;
   saveConversation: () => Promise<void>;
+  renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
 
   addUserMessage: (content: string) => void;
@@ -307,6 +309,19 @@ export const useStore = create<AppState>((set, get) => ({
     get().loadConversationList();
   },
 
+  renameConversation: async (id, title) => {
+    await fetch(`/api/conversations/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    const { currentConversation } = get();
+    if (currentConversation?.id === id) {
+      set({ currentConversation: { ...currentConversation, title } });
+    }
+    get().loadConversationList();
+  },
+
   deleteConversation: async (id) => {
     await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
     const { currentConversation } = get();
@@ -373,7 +388,14 @@ export const useStore = create<AppState>((set, get) => ({
   finalizeAssistantMessage: (content, reasoning, stats) =>
     set((s) => {
       if (!s.currentConversation) return {};
-      const msg: Message = { id: uuidv4(), role: 'assistant', content, reasoning, stats };
+      const msg: Message = {
+        id: uuidv4(),
+        role: 'assistant',
+        content,
+        reasoning,
+        model: s.currentConversation.model,
+        stats,
+      };
       return {
         currentConversation: {
           ...s.currentConversation,

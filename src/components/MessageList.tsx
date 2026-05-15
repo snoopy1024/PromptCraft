@@ -57,11 +57,16 @@ export default function MessageList({ onRetry, onEditSend }: Props) {
               msg.role === 'user' && nextMsg?.role === 'assistant'
                 ? nextMsg.stats
                 : undefined;
+            const msgModel = msg.role === 'assistant'
+              ? msg.model ?? currentConversation.model
+              : nextMsg?.role === 'assistant'
+                ? nextMsg.model ?? currentConversation.model
+                : currentConversation.model;
             return (
               <MessageBubble
                 key={msg.id}
                 message={msg}
-                model={currentConversation.model}
+                model={msgModel}
                 assistantStats={assistantStats}
                 onRetry={msg.role === 'assistant' ? () => onRetry(msg.id) : undefined}
                 onEditSend={msg.role === 'user' ? onEditSend : undefined}

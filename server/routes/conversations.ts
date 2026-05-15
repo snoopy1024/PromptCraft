@@ -53,6 +53,20 @@ conversationsRouter.post('/', async (req, res) => {
   res.json({ ok: true });
 });
 
+conversationsRouter.patch('/:id', async (req, res) => {
+  await ensureDataDir();
+  const filePath = path.join(DATA_DIR, `${req.params.id}.json`);
+  try {
+    const raw = await fs.readFile(filePath, 'utf-8');
+    const conv = JSON.parse(raw);
+    Object.assign(conv, req.body);
+    await fs.writeFile(filePath, JSON.stringify(conv, null, 2));
+    res.json({ ok: true });
+  } catch {
+    res.status(404).json({ error: 'Conversation not found' });
+  }
+});
+
 conversationsRouter.delete('/:id', async (req, res) => {
   await ensureDataDir();
   const filePath = path.join(DATA_DIR, `${req.params.id}.json`);

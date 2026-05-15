@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Brain, MessageSquareText, Gauge, Clock } from 'lucide-react';
 import type { MessageStats } from '~/store';
 import { getStatsValues, getUnifiedStatsValues, MODEL_PRICING } from '~/utils/messageStats';
+import { MODELS } from './ModelSelector';
+import deepSeekIcon from '~/assets/deepseek.png';
 import PricingPopup from './PricingPopup';
+import ModelParamsPopup from './ModelParamsPopup';
 
 interface Props {
   stats?: MessageStats;
@@ -67,14 +70,35 @@ function buildCostItems(stats: MessageStats | undefined, model: string) {
 
 export default function StatsLine({ stats, model, type }: Props) {
   const [showPricing, setShowPricing] = useState(false);
+  const [showModelParams, setShowModelParams] = useState(false);
 
   if (type === 'unified') {
     const v = getUnifiedStatsValues(stats);
     const costItems = model ? buildCostItems(stats, model) : [];
     const totalCost = costItems.reduce((sum, i) => sum + i.cost, 0);
 
+    const modelShortName = model
+      ? MODELS.find((m) => m.id === model)?.shortName ?? model
+      : undefined;
+
     return (
       <span className="flex flex-wrap items-center gap-x-4 whitespace-nowrap leading-5 tabular-nums">
+        {modelShortName && (
+          <span className="relative">
+            <button
+              type="button"
+              onClick={() => setShowModelParams(true)}
+              className="inline-flex items-center gap-1 rounded transition-colors hover:text-gray-600"
+              title="查看请求参数"
+            >
+              <img src={deepSeekIcon} alt="" className="h-3.5 w-3.5 rounded-full object-contain" draggable={false} />
+              {modelShortName}
+            </button>
+            {showModelParams && stats && (
+              <ModelParamsPopup stats={stats} onClose={() => setShowModelParams(false)} />
+            )}
+          </span>
+        )}
         {v.reasoningTokens && (
           <Stat icon={<Brain size={ICON_SIZE} />} value={v.reasoningTokens} title="思考 Tokens" />
         )}

@@ -2,9 +2,9 @@ import { ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '~/store';
 
-const MODELS = [
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4-Flash', description: '高性价比，支持思考/非思考模式切换' },
-  { id: 'deepseek-v4-pro', name: 'DeepSeek V4-Pro', description: '旗舰模型，更强推理能力' },
+export const MODELS = [
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4-Flash', shortName: 'V4-Flash', description: '高性价比，支持思考/非思考模式切换', contextWindow: 1048576 },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek V4-Pro', shortName: 'V4-Pro', description: '旗舰模型，更强推理能力', contextWindow: 1048576 },
 ];
 
 export default function ModelSelector() {
