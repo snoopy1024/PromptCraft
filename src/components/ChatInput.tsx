@@ -1,16 +1,8 @@
-import { useMemo, useState, useCallback, type KeyboardEvent } from 'react';
+import { useState, useCallback, type KeyboardEvent } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { ArrowUp, Plus, Square } from 'lucide-react';
 import ChatSettingsPopover from './ChatSettingsPopover';
-import { MODELS } from './ModelSelector';
-import { useStore } from '~/store';
-import { estimateTokens } from '~/utils/messageStats';
-
-function formatTokenCount(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(n);
-}
+import ContextUsageIndicator from './ContextUsageIndicator';
 
 interface Props {
   send: (content: string) => void;
@@ -20,7 +12,6 @@ interface Props {
 
 export default function ChatInput({ send, stop, isStreaming }: Props) {
   const [input, setInput] = useState('');
-  const { currentConversation, streamingStats } = useStore();
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -38,40 +29,6 @@ export default function ChatInput({ send, stop, isStreaming }: Props) {
     },
     [handleSend],
   );
-
-  const contextStats = useMemo(() => {
-    if (!currentConversation) return null;
-    const model = MODELS.find((m) => m.id === currentConversation.model) || MODELS[0];
-    const contextWindow = model.contextWindow;
-
-    const messages = currentConversation.messages;
-    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-    const lastAssistantIdx = lastAssistant ? messages.indexOf(lastAssistant) : -1;
-
-    let usedTokens: number;
-    if (lastAssistant?.stats?.promptTokens != null) {
-      const outputTokens =
-        (lastAssistant.stats.completionTokens ?? 0) + (lastAssistant.stats.reasoningTokens ?? 0);
-      let extraTokens = 0;
-      for (let i = lastAssistantIdx + 1; i < messages.length; i++) {
-        extraTokens += estimateTokens(messages[i].content);
-      }
-      usedTokens = lastAssistant.stats.promptTokens + outputTokens + extraTokens;
-    } else {
-      usedTokens = estimateTokens(currentConversation.systemPrompt || '');
-      for (const msg of messages) {
-        usedTokens += estimateTokens(msg.content);
-      }
-    }
-
-    if (isStreaming && streamingStats.promptTokens != null) {
-      const streamOut =
-        (streamingStats.completionTokens ?? 0) + (streamingStats.reasoningTokens ?? 0);
-      usedTokens = streamingStats.promptTokens + streamOut;
-    }
-
-    return { usedTokens, contextWindow };
-  }, [currentConversation, isStreaming, streamingStats]);
 
   return (
     <div className="bg-[#fbfaf7] px-3 pb-3 pt-2 sm:px-4">
@@ -95,13 +52,14 @@ export default function ChatInput({ send, stop, isStreaming }: Props) {
             >
               <Plus size={20} />
             </button>
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-0">
+              <ContextUsageIndicator isStreaming={isStreaming} />
               <ChatSettingsPopover />
               {isStreaming ? (
                 <button
                   type="button"
                   onClick={stop}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700"
+                  className="ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700"
                   title="停止生成"
                 >
                   <Square size={12} fill="currentColor" />
@@ -111,7 +69,7 @@ export default function ChatInput({ send, stop, isStreaming }: Props) {
                   type="button"
                   onClick={handleSend}
                   disabled={!input.trim()}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400"
+                  className="ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400"
                   title="发送"
                 >
                   <ArrowUp size={16} strokeWidth={2.5} />
@@ -120,11 +78,6 @@ export default function ChatInput({ send, stop, isStreaming }: Props) {
             </div>
           </div>
         </div>
-        {contextStats && contextStats.usedTokens > 0 && (
-          <div className="mt-1.5 px-1 text-center text-[11px] text-gray-400">
-            上下文 {formatTokenCount(contextStats.usedTokens)} / {formatTokenCount(contextStats.contextWindow)} Tokens
-          </div>
-        )}
       </div>
     </div>
   );
