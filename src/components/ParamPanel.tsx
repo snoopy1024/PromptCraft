@@ -76,7 +76,7 @@ export default function ParamPanel() {
         <SliderField
           label="Max Tokens"
           value={params.max_tokens}
-          min={1}
+          min={256}
           max={65536}
           step={256}
           onChange={(v) => setParams({ max_tokens: v })}

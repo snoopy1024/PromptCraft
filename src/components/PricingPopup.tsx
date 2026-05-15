@@ -40,7 +40,7 @@ export default function PricingPopup({ model, items, totalCost, onClose }: Props
   return (
     <div
       ref={ref}
-      className="absolute bottom-full right-0 z-50 mb-2 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-lg shadow-black/10"
+      className="absolute bottom-full right-0 z-50 mb-2 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-lg shadow-black/10"
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-800">{modelName}</span>
@@ -78,17 +78,16 @@ export default function PricingPopup({ model, items, totalCost, onClose }: Props
         <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">
           费用明细
         </p>
-        <div className="space-y-1.5 text-xs">
+        <div className="space-y-3 text-xs">
           {items.map((item) => (
-            <div key={item.label} className="flex items-baseline justify-between text-gray-600">
-              <span>{item.label}</span>
-              <span className="ml-2 tabular-nums">
-                <span className="text-gray-400">
-                  {item.tokens.toLocaleString()}t × ¥{item.pricePerM}/M
-                </span>
-                {' = '}
-                <span className="font-medium text-gray-800">{formatCost(item.cost)}</span>
-              </span>
+            <div key={item.label} className="text-gray-600">
+              <div className="flex items-baseline justify-between">
+                <span>{item.label}</span>
+                <span className="font-medium tabular-nums text-gray-800">{formatCost(item.cost)}</span>
+              </div>
+              <div className="mt-0.5 tabular-nums text-gray-400">
+                {item.tokens.toLocaleString()}t × ¥{item.pricePerM}/M
+              </div>
             </div>
           ))}
         </div>

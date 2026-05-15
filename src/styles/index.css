@@ -45,7 +45,7 @@ html, body, #root {
   margin-left: 0.25rem;
   vertical-align: middle;
   position: relative;
-  top: -0.5px;
+  top: -1.5px;
   color: #999;
   animation: pulse 1.5s ease-in-out infinite;
 }

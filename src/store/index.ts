@@ -20,6 +20,11 @@ export interface MessageStats {
   reasoningDurationMs?: number;
   reasoningTokensPerSecond?: number;
   reasoningCostCny?: number;
+  promptTokens?: number;
+  promptCacheHitTokens?: number;
+  promptCacheMissTokens?: number;
+  promptCostCny?: number;
+  requestParams?: Record<string, unknown>;
 }
 
 export interface Conversation {
@@ -40,8 +45,6 @@ export interface ModelParams {
   temperature: number;
   top_p: number;
   max_tokens: number;
-  frequency_penalty: number;
-  presence_penalty: number;
 }
 
 export interface ConversationSummary {
@@ -56,8 +59,6 @@ const DEFAULT_PARAMS: ModelParams = {
   temperature: 1.0,
   top_p: 1.0,
   max_tokens: 4096,
-  frequency_penalty: 0,
-  presence_penalty: 0,
 };
 
 const DEFAULT_MODEL = 'deepseek-v4-flash';

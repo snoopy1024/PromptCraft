@@ -1,9 +1,12 @@
 import { useCallback, useRef } from 'react';
 import { useStore, type Conversation, type MessageStats } from '~/store';
-import { estimateTokens, outputCostCny, ratePerSecond } from '~/utils/messageStats';
+import { estimateTokens, outputCostCny, promptCostCny, ratePerSecond } from '~/utils/messageStats';
 
 interface ChatUsage {
   completion_tokens?: number;
+  prompt_tokens?: number;
+  prompt_cache_hit_tokens?: number;
+  prompt_cache_miss_tokens?: number;
   completion_tokens_details?: {
     reasoning_tokens?: number;
   };
@@ -39,6 +42,7 @@ export function useChat() {
       let fullContent = '';
       let fullReasoning = '';
       let finalUsage: ChatUsage | undefined;
+      let requestParams: Record<string, unknown> | undefined;
       const model = conversation.model;
       const requestStart = performance.now();
       let reasoningStartedAt: number | undefined;
@@ -66,6 +70,10 @@ export function useChat() {
             ? Math.max(0, now - requestStart)
             : undefined;
 
+        const promptTokens = finalUsage?.prompt_tokens;
+        const promptCacheHit = finalUsage?.prompt_cache_hit_tokens;
+        const promptCacheMiss = finalUsage?.prompt_cache_miss_tokens;
+
         return {
           completionTokens,
           completionEstimated: !finalUsage,
@@ -77,6 +85,13 @@ export function useChat() {
           reasoningDurationMs,
           reasoningTokensPerSecond: ratePerSecond(reasoningTokens, reasoningDurationMs),
           reasoningCostCny: outputCostCny(model, reasoningTokens),
+          promptTokens,
+          promptCacheHitTokens: promptCacheHit,
+          promptCacheMissTokens: promptCacheMiss,
+          promptCostCny: promptTokens !== undefined
+            ? promptCostCny(model, promptCacheHit ?? 0, promptCacheMiss ?? 0)
+            : undefined,
+          requestParams,
         };
       };
 
@@ -136,6 +151,8 @@ export function useChat() {
                 fullReasoning += parsed.content;
                 appendStreamReasoning(parsed.content);
                 updateStreamingStats();
+              } else if (parsed.type === 'request_params') {
+                requestParams = parsed.params;
               } else if (parsed.type === 'usage') {
                 finalUsage = parsed.usage;
                 updateStreamingStats();

@@ -14,8 +14,6 @@ chatRouter.post('/', async (req, res) => {
       temperature?: number;
       top_p?: number;
       max_tokens?: number;
-      frequency_penalty?: number;
-      presence_penalty?: number;
     };
   };
 
@@ -51,6 +49,9 @@ chatRouter.post('/', async (req, res) => {
       max_tokens: params?.max_tokens,
       stream_options: { include_usage: true },
       thinking: { type: thinking ? 'enabled' : 'disabled' },
+      ...(thinking && thinkingLevel && thinkingLevel !== 'off' && {
+        reasoning_effort: thinkingLevel,
+      }),
     };
 
     // temperature/top_p/penalties are ignored in thinking mode per DeepSeek docs
@@ -58,6 +59,9 @@ chatRouter.post('/', async (req, res) => {
       requestBody.temperature = params?.temperature;
       requestBody.top_p = params?.top_p;
     }
+
+    const { messages: _msgs, stream: _s, stream_options: _so, ...visibleParams } = requestBody;
+    res.write(`data: ${JSON.stringify({ type: 'request_params', params: visibleParams })}\n\n`);
 
     const stream = await (client.chat.completions.create as Function)(requestBody);
 

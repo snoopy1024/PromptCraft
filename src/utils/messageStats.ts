@@ -41,10 +41,21 @@ export function outputCostCny(model: string, tokens: number) {
   return (tokens / 1_000_000) * price;
 }
 
-export function inputCostCny(model: string, tokens: number) {
+export function inputCostCny(model: string, tokens: number, cacheHit?: number, cacheMiss?: number) {
   const pricing = MODEL_PRICING[model];
   if (!pricing) return 0;
+  if (cacheHit !== undefined && cacheMiss !== undefined) {
+    return (cacheHit / 1_000_000) * pricing.inputCacheHit
+      + (cacheMiss / 1_000_000) * pricing.inputCacheMiss;
+  }
   return (tokens / 1_000_000) * pricing.inputCacheMiss;
+}
+
+export function promptCostCny(model: string, cacheHit: number, cacheMiss: number) {
+  const pricing = MODEL_PRICING[model];
+  if (!pricing) return 0;
+  return (cacheHit / 1_000_000) * pricing.inputCacheHit
+    + (cacheMiss / 1_000_000) * pricing.inputCacheMiss;
 }
 
 export function ratePerSecond(tokens: number, durationMs?: number) {
@@ -61,9 +72,9 @@ export function formatDuration(ms?: number) {
 }
 
 export function formatCost(cost?: number) {
-  if (cost === undefined) return '¥0.00000';
-  if (cost === 0) return '¥0.00000';
-  return `¥${cost.toFixed(cost < 0.01 ? 5 : 4)}`;
+  if (cost === undefined) return '¥ 0.00000';
+  if (cost === 0) return '¥ 0.00000';
+  return `¥ ${cost.toFixed(cost < 0.01 ? 5 : 4)}`;
 }
 
 export function getStatsValues(
@@ -104,7 +115,8 @@ export function getUnifiedStatsValues(stats: MessageStats | undefined) {
 
   const rCost = stats?.reasoningCostCny ?? 0;
   const cCost = stats?.completionCostCny ?? 0;
-  const totalCost = rCost + cCost;
+  const pCost = stats?.promptCostCny ?? 0;
+  const totalCost = pCost + rCost + cCost;
 
   return {
     reasoningTokens: rTokens > 0 ? `${rEst ? '~' : ''}${rTokens}t` : null,

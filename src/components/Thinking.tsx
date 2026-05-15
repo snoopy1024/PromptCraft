@@ -9,7 +9,7 @@ interface Props {
 }
 
 const Thinking = memo(function Thinking({ content, stats, isStreaming }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!!isStreaming);
   const [copied, setCopied] = useState(false);
   const [scrollbarActive, setScrollbarActive] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -48,6 +48,10 @@ const Thinking = memo(function Thinking({ content, stats, isStreaming }: Props) 
   }, [content, expanded, isStreaming]);
 
   useEffect(() => {
+    setExpanded(!!isStreaming);
+  }, [isStreaming]);
+
+  useEffect(() => {
     return () => window.clearTimeout(scrollbarTimerRef.current);
   }, []);
 
@@ -76,7 +80,7 @@ const Thinking = memo(function Thinking({ content, stats, isStreaming }: Props) 
       </button>
 
       {expanded && (
-        <div className="group/thinking-box relative mt-3 rounded-xl border border-gray-200 bg-transparent p-4">
+        <div className="group/thinking-box relative mt-3 rounded-xl border border-gray-200 bg-transparent py-4 pl-4 pr-1">
           <button
             onClick={handleCopy}
             className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-[#f3f1ec] text-gray-500 opacity-0 transition-colors transition-opacity hover:bg-[#e9e6df] hover:text-gray-700 group-hover/thinking-box:opacity-100"
@@ -87,7 +91,7 @@ const Thinking = memo(function Thinking({ content, stats, isStreaming }: Props) 
           <div
             ref={scrollRef}
             onScroll={updatePinnedToBottom}
-            className={`scrollbar-auto-hide max-h-[400px] overflow-y-auto pr-0.5 ${
+            className={`scrollbar-auto-hide max-h-[400px] overflow-y-auto pr-3 ${
               scrollbarActive ? 'scrollbar-active' : ''
             }`}
           >

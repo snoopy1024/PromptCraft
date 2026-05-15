@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, MessageSquareText, Gauge, Coins, Clock } from 'lucide-react';
+import { Brain, MessageSquareText, Gauge, Clock } from 'lucide-react';
 import type { MessageStats } from '~/store';
 import { getStatsValues, getUnifiedStatsValues, MODEL_PRICING } from '~/utils/messageStats';
 import PricingPopup from './PricingPopup';
@@ -21,13 +21,33 @@ function Stat({ icon, value, title }: { icon: React.ReactNode; value: string; ti
 
 const ICON_SIZE = 13;
 
-function buildOutputCostItems(stats: MessageStats | undefined, model: string) {
+function buildCostItems(stats: MessageStats | undefined, model: string) {
   const pricing = MODEL_PRICING[model];
   const outputPrice = pricing?.output ?? 0;
   const rTokens = stats?.reasoningTokens ?? 0;
   const cTokens = stats?.completionTokens ?? 0;
+  const cacheHit = stats?.promptCacheHitTokens ?? 0;
+  const cacheMiss = stats?.promptCacheMissTokens ?? 0;
 
   const items = [];
+
+  if (stats?.promptTokens !== undefined) {
+    if (cacheHit > 0) {
+      items.push({
+        label: '输入（缓存命中）',
+        tokens: cacheHit,
+        pricePerM: pricing?.inputCacheHit ?? 0,
+        cost: (cacheHit / 1_000_000) * (pricing?.inputCacheHit ?? 0),
+      });
+    }
+    items.push({
+      label: '输入（缓存未命中）',
+      tokens: cacheMiss,
+      pricePerM: pricing?.inputCacheMiss ?? 0,
+      cost: (cacheMiss / 1_000_000) * (pricing?.inputCacheMiss ?? 0),
+    });
+  }
+
   if (rTokens > 0) {
     items.push({
       label: '思考',
@@ -50,7 +70,7 @@ export default function StatsLine({ stats, model, type }: Props) {
 
   if (type === 'unified') {
     const v = getUnifiedStatsValues(stats);
-    const costItems = model ? buildOutputCostItems(stats, model) : [];
+    const costItems = model ? buildCostItems(stats, model) : [];
     const totalCost = costItems.reduce((sum, i) => sum + i.cost, 0);
 
     return (
@@ -67,7 +87,6 @@ export default function StatsLine({ stats, model, type }: Props) {
             className="inline-flex items-center gap-1 rounded transition-colors hover:text-gray-600"
             title="查看费用明细"
           >
-            <Coins size={ICON_SIZE} />
             {v.cost}
           </button>
           {showPricing && model && (

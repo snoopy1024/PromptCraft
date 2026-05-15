@@ -51,12 +51,18 @@ export default function MessageList({ onRetry, onEditSend }: Props) {
         </div>
       ) : (
         <div className="mx-auto flex max-w-3xl flex-col px-4 pb-8 pt-6 sm:px-6">
-          {currentConversation.messages.map((msg) => {
+          {currentConversation.messages.map((msg, idx) => {
+            const nextMsg = currentConversation.messages[idx + 1];
+            const assistantStats =
+              msg.role === 'user' && nextMsg?.role === 'assistant'
+                ? nextMsg.stats
+                : undefined;
             return (
               <MessageBubble
                 key={msg.id}
                 message={msg}
                 model={currentConversation.model}
+                assistantStats={assistantStats}
                 onRetry={msg.role === 'assistant' ? () => onRetry(msg.id) : undefined}
                 onEditSend={msg.role === 'user' ? onEditSend : undefined}
               />

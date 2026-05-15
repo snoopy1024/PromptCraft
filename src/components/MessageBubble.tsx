@@ -1,16 +1,18 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { Check, ChevronDown, ChevronUp, Coins, Copy, MessageSquareText, Pencil, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Copy, MessageSquareText, Pencil, RotateCcw } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
-import type { Message } from '~/store';
+import type { Message, MessageStats } from '~/store';
 import Markdown from './Markdown';
 import Thinking from './Thinking';
 import StatsLine from './StatsLine';
 import PricingPopup from './PricingPopup';
+import TokenDetailPopup from './TokenDetailPopup';
 import { estimateTokens, inputCostCny, formatCost, MODEL_PRICING } from '~/utils/messageStats';
 
 interface Props {
   message: Message;
   model?: string;
+  assistantStats?: MessageStats;
   isStreaming?: boolean;
   onRetry?: () => void;
   onEditSend?: (messageId: string, newContent: string) => void;
@@ -19,13 +21,14 @@ interface Props {
 const COLLAPSE_CHAR_LIMIT = 420;
 const COLLAPSE_LINE_LIMIT = 7;
 
-export default function MessageBubble({ message, model, isStreaming, onRetry, onEditSend }: Props) {
+export default function MessageBubble({ message, model, assistantStats, isStreaming, onRetry, onEditSend }: Props) {
   const isUser = message.role === 'user';
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [showInputPricing, setShowInputPricing] = useState(false);
+  const [showTokenDetail, setShowTokenDetail] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const shouldCollapse =
     message.content.length > COLLAPSE_CHAR_LIMIT ||
@@ -63,7 +66,11 @@ export default function MessageBubble({ message, model, isStreaming, onRetry, on
   }, [editing]);
 
   if (isUser) {
-    const inputTokens = estimateTokens(message.content);
+    const estimatedTokens = estimateTokens(message.content);
+    const hasApiTokens = assistantStats?.promptTokens !== undefined;
+    const inputTokens = hasApiTokens ? assistantStats.promptTokens! : estimatedTokens;
+    const cacheHitTokens = assistantStats?.promptCacheHitTokens ?? 0;
+    const cacheMissTokens = assistantStats?.promptCacheMissTokens ?? 0;
 
     if (editing) {
       return (
@@ -144,19 +151,52 @@ export default function MessageBubble({ message, model, isStreaming, onRetry, on
         </div>
 
         <div className="pointer-events-none mt-1.5 flex items-center justify-end gap-3 text-xs text-gray-400 opacity-0 transition-opacity group-hover/user:pointer-events-auto group-hover/user:opacity-100 group-focus-within/user:pointer-events-auto group-focus-within/user:opacity-100">
-          <span className="inline-flex items-center gap-1 tabular-nums" title="输入 Tokens">
-            <MessageSquareText size={13} />
-            {inputTokens}t
+          <span className="relative">
+            <button
+              type="button"
+              onClick={() => setShowTokenDetail(true)}
+              className="inline-flex items-center gap-1 rounded tabular-nums transition-colors hover:text-gray-600"
+              title="查看 Token 详情"
+            >
+              <MessageSquareText size={13} />
+              {estimatedTokens}t
+            </button>
+            {showTokenDetail && (
+              <TokenDetailPopup
+                estimatedTokens={estimatedTokens}
+                promptTokens={hasApiTokens ? inputTokens : undefined}
+                cacheHitTokens={cacheHitTokens}
+                cacheMissTokens={cacheMissTokens}
+                onClose={() => setShowTokenDetail(false)}
+              />
+            )}
           </span>
           {model && (() => {
-            const cost = inputCostCny(model, inputTokens);
+            const cost = hasApiTokens
+              ? inputCostCny(model, inputTokens, cacheHitTokens, cacheMissTokens)
+              : inputCostCny(model, inputTokens);
             const pricing = MODEL_PRICING[model];
-            const costItems = [{
-              label: '输入（缓存未命中）',
-              tokens: inputTokens,
-              pricePerM: pricing?.inputCacheMiss ?? 0,
-              cost,
-            }];
+            const costItems = hasApiTokens
+              ? [
+                  ...(cacheHitTokens > 0 ? [{
+                    label: '输入（缓存命中）',
+                    tokens: cacheHitTokens,
+                    pricePerM: pricing?.inputCacheHit ?? 0,
+                    cost: (cacheHitTokens / 1_000_000) * (pricing?.inputCacheHit ?? 0),
+                  }] : []),
+                  {
+                    label: '输入（缓存未命中）',
+                    tokens: cacheMissTokens,
+                    pricePerM: pricing?.inputCacheMiss ?? 0,
+                    cost: (cacheMissTokens / 1_000_000) * (pricing?.inputCacheMiss ?? 0),
+                  },
+                ]
+              : [{
+                  label: '输入（估算）',
+                  tokens: inputTokens,
+                  pricePerM: pricing?.inputCacheMiss ?? 0,
+                  cost,
+                }];
             return (
               <span className="relative">
                 <button
@@ -165,7 +205,6 @@ export default function MessageBubble({ message, model, isStreaming, onRetry, on
                   className="inline-flex items-center gap-1 rounded tabular-nums transition-colors hover:text-gray-600"
                   title="查看费用明细"
                 >
-                  <Coins size={13} />
                   {formatCost(cost)}
                 </button>
                 {showInputPricing && (
