@@ -28,6 +28,17 @@ export function useChat() {
   } = useStore();
   const activeConversationIdRef = useRef<string | null>(null);
 
+  const persistConversation = useCallback(
+    async (conversation?: Conversation) => {
+      try {
+        await saveConversation(conversation);
+      } catch (err) {
+        console.error('Failed to save conversation:', err);
+      }
+    },
+    [saveConversation],
+  );
+
   useEffect(() => {
     if (
       abortRef.current &&
@@ -224,7 +235,7 @@ export function useChat() {
           }
           setStreaming(false);
           resetStream();
-          setTimeout(() => saveConversation(), 100);
+          setTimeout(() => persistConversation(), 100);
         }
 
         if (abortRef.current === controller) {
@@ -243,7 +254,7 @@ export function useChat() {
       setStreamingError,
       setStreamingStats,
       finalizeAssistantMessage,
-      saveConversation,
+      persistConversation,
     ],
   );
 
@@ -256,9 +267,10 @@ export function useChat() {
       const nextConversation = useStore.getState().currentConversation;
       if (!nextConversation) return;
 
+      await persistConversation(nextConversation);
       await runCompletion(nextConversation);
     },
-    [runCompletion],
+    [persistConversation, runCompletion],
   );
 
   const retry = useCallback(
@@ -269,9 +281,10 @@ export function useChat() {
       const nextConversation = state.prepareAssistantRetry(assistantId);
       if (!nextConversation) return;
 
+      await persistConversation(nextConversation);
       await runCompletion(nextConversation);
     },
-    [runCompletion],
+    [persistConversation, runCompletion],
   );
 
   const editAndResend = useCallback(
@@ -282,9 +295,10 @@ export function useChat() {
       const nextConversation = state.updateUserMessageAndTruncate(messageId, newContent);
       if (!nextConversation) return;
 
+      await persistConversation(nextConversation);
       await runCompletion(nextConversation);
     },
-    [runCompletion],
+    [persistConversation, runCompletion],
   );
 
   const stop = useCallback(() => {

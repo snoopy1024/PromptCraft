@@ -196,7 +196,7 @@ interface AppState {
   newConversation: () => void;
   loadConversationList: () => Promise<void>;
   loadConversation: (id: string) => Promise<void>;
-  saveConversation: () => Promise<void>;
+  saveConversation: (conversation?: Conversation) => Promise<void>;
   renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
 
@@ -324,8 +324,8 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  saveConversation: async () => {
-    const conv = get().currentConversation;
+  saveConversation: async (conversation) => {
+    const conv = conversation ?? get().currentConversation;
     if (!conv || conv.messages.length === 0) return;
     const toSave = { ...conv, updatedAt: new Date().toISOString() };
     if (toSave.title === '新对话' && toSave.messages.length > 0) {
@@ -337,7 +337,9 @@ export const useStore = create<AppState>((set, get) => ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toSave),
     });
-    set({ currentConversation: toSave });
+    if (get().currentConversation?.id === toSave.id) {
+      set({ currentConversation: toSave });
+    }
     get().loadConversationList();
   },
 
