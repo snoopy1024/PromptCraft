@@ -1,5 +1,5 @@
-import { useCallback, useRef } from 'react';
-import { useStore, type Conversation, type MessageStats } from '~/store';
+import { useCallback, useEffect, useRef } from 'react';
+import { useStore, type Conversation, type MessageError, type MessageStats } from '~/store';
 import { estimateTokens, outputCostCny, promptCostCny, ratePerSecond } from '~/utils/messageStats';
 
 interface ChatUsage {
@@ -21,10 +21,22 @@ export function useChat() {
     setStreaming,
     appendStreamContent,
     appendStreamReasoning,
+    setStreamingError,
     setStreamingStats,
     resetStream,
     saveConversation,
   } = useStore();
+  const activeConversationIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      abortRef.current &&
+      activeConversationIdRef.current &&
+      currentConversation?.id !== activeConversationIdRef.current
+    ) {
+      abortRef.current.abort();
+    }
+  }, [currentConversation?.id]);
 
   const runCompletion = useCallback(
     async (conversation: Conversation) => {
@@ -38,9 +50,11 @@ export function useChat() {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      activeConversationIdRef.current = conversation.id;
 
       let fullContent = '';
       let fullReasoning = '';
+      let fullError: MessageError | undefined;
       let finalUsage: ChatUsage | undefined;
       let requestParams: Record<string, unknown> | undefined;
       const model = conversation.model;
@@ -99,6 +113,10 @@ export function useChat() {
         setStreamingStats(buildStats());
       };
 
+      const isActiveConversation = () =>
+        useStore.getState().currentConversation?.id === conversation.id &&
+        abortRef.current === controller;
+
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
@@ -135,6 +153,11 @@ export function useChat() {
             if (data === '[DONE]') break;
 
             try {
+              if (!isActiveConversation()) {
+                controller.abort();
+                return;
+              }
+
               const parsed = JSON.parse(data);
               if (parsed.type === 'content') {
                 const now = performance.now();
@@ -157,11 +180,12 @@ export function useChat() {
                 finalUsage = parsed.usage;
                 updateStreamingStats();
               } else if (parsed.type === 'error') {
-                const now = performance.now();
-                completionStartedAt ??= now;
-                completionEndedAt = now;
-                fullContent += `\n\n**Error:** ${parsed.error}`;
-                appendStreamContent(`\n\n**Error:** ${parsed.error}`);
+                fullError = {
+                  code: parsed.code,
+                  title: parsed.title || '请求失败',
+                  message: parsed.error || '模型服务没有返回可用错误信息。',
+                };
+                setStreamingError(fullError);
                 updateStreamingStats();
               }
             } catch {
@@ -174,16 +198,41 @@ export function useChat() {
           // user cancelled
         } else {
           const msg = err instanceof Error ? err.message : 'Unknown error';
-          fullContent += `\n\n**Error:** ${msg}`;
-          appendStreamContent(`\n\n**Error:** ${msg}`);
+          fullError = {
+            code: 'request_error',
+            title: '请求失败',
+            message: msg,
+          };
+          if (isActiveConversation()) {
+            setStreamingError(fullError);
+          }
         }
       } finally {
-        const finalStats = buildStats(performance.now(), true);
-        setStreamingStats(finalStats);
-        finalizeAssistantMessage(fullContent, fullReasoning || undefined, finalStats);
-        setStreaming(false);
-        abortRef.current = null;
-        setTimeout(() => saveConversation(), 100);
+        const isActive = isActiveConversation();
+        const shouldFinalize = Boolean(fullContent || fullReasoning || fullError);
+
+        if (isActive) {
+          const finalStats = buildStats(performance.now(), true);
+          setStreamingStats(finalStats);
+          if (shouldFinalize) {
+            finalizeAssistantMessage(
+              fullContent,
+              fullReasoning || undefined,
+              finalStats,
+              fullError,
+            );
+          }
+          setStreaming(false);
+          resetStream();
+          setTimeout(() => saveConversation(), 100);
+        }
+
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+        if (activeConversationIdRef.current === conversation.id) {
+          activeConversationIdRef.current = null;
+        }
       }
     },
     [
@@ -191,6 +240,7 @@ export function useChat() {
       setStreaming,
       appendStreamContent,
       appendStreamReasoning,
+      setStreamingError,
       setStreamingStats,
       finalizeAssistantMessage,
       saveConversation,

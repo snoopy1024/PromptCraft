@@ -14,6 +14,7 @@ export default function MessageList({ onRetry, onEditSend }: Props) {
     isStreaming,
     streamingContent,
     streamingReasoning,
+    streamingError,
     streamingStats,
   } = useStore();
   const listRef = useRef<HTMLDivElement>(null);
@@ -81,6 +82,7 @@ export default function MessageList({ onRetry, onEditSend }: Props) {
                 role: 'assistant',
                 content: streamingContent,
                 reasoning: streamingReasoning || undefined,
+                error: streamingError,
                 stats: streamingStats,
               }}
               model={currentConversation.model}

@@ -8,6 +8,13 @@ export interface Message {
   reasoning?: string;
   model?: string;
   stats?: MessageStats;
+  error?: MessageError;
+}
+
+export interface MessageError {
+  code?: string;
+  title: string;
+  message: string;
 }
 
 export interface MessageStats {
@@ -169,6 +176,7 @@ interface AppState {
   isStreaming: boolean;
   streamingContent: string;
   streamingReasoning: string;
+  streamingError?: MessageError;
   streamingStats: MessageStats;
   sidebarOpen: boolean;
 
@@ -181,6 +189,7 @@ interface AppState {
   setStreaming: (streaming: boolean) => void;
   appendStreamContent: (content: string) => void;
   appendStreamReasoning: (reasoning: string) => void;
+  setStreamingError: (error: MessageError) => void;
   setStreamingStats: (stats: MessageStats) => void;
   resetStream: () => void;
 
@@ -194,7 +203,12 @@ interface AppState {
   addUserMessage: (content: string) => void;
   prepareAssistantRetry: (assistantId: string) => Conversation | null;
   updateUserMessageAndTruncate: (messageId: string, newContent: string) => Conversation | null;
-  finalizeAssistantMessage: (content: string, reasoning?: string, stats?: MessageStats) => void;
+  finalizeAssistantMessage: (
+    content: string,
+    reasoning?: string,
+    stats?: MessageStats,
+    error?: MessageError,
+  ) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -203,6 +217,7 @@ export const useStore = create<AppState>((set, get) => ({
   isStreaming: false,
   streamingContent: '',
   streamingReasoning: '',
+  streamingError: undefined,
   streamingStats: {},
   sidebarOpen: true,
 
@@ -273,10 +288,20 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ streamingContent: s.streamingContent + content })),
   appendStreamReasoning: (reasoning) =>
     set((s) => ({ streamingReasoning: s.streamingReasoning + reasoning })),
+  setStreamingError: (error) => set({ streamingError: error }),
   setStreamingStats: (stats) => set({ streamingStats: stats }),
-  resetStream: () => set({ streamingContent: '', streamingReasoning: '', streamingStats: {} }),
+  resetStream: () =>
+    set({ streamingContent: '', streamingReasoning: '', streamingError: undefined, streamingStats: {} }),
 
-  newConversation: () => set({ currentConversation: createNewConversation() }),
+  newConversation: () =>
+    set({
+      currentConversation: createNewConversation(),
+      isStreaming: false,
+      streamingContent: '',
+      streamingReasoning: '',
+      streamingError: undefined,
+      streamingStats: {},
+    }),
 
   loadConversationList: async () => {
     const res = await fetch('/api/conversations');
@@ -288,7 +313,14 @@ export const useStore = create<AppState>((set, get) => ({
     const res = await fetch(`/api/conversations/${id}`);
     if (res.ok) {
       const data = await res.json();
-      set({ currentConversation: normalizeConversation(data) });
+      set({
+        currentConversation: normalizeConversation(data),
+        isStreaming: false,
+        streamingContent: '',
+        streamingReasoning: '',
+        streamingError: undefined,
+        streamingStats: {},
+      });
     }
   },
 
@@ -326,7 +358,14 @@ export const useStore = create<AppState>((set, get) => ({
     await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
     const { currentConversation } = get();
     if (currentConversation?.id === id) {
-      set({ currentConversation: createNewConversation() });
+      set({
+        currentConversation: createNewConversation(),
+        isStreaming: false,
+        streamingContent: '',
+        streamingReasoning: '',
+        streamingError: undefined,
+        streamingStats: {},
+      });
     }
     get().loadConversationList();
   },
@@ -385,7 +424,7 @@ export const useStore = create<AppState>((set, get) => ({
     return nextConversation;
   },
 
-  finalizeAssistantMessage: (content, reasoning, stats) =>
+  finalizeAssistantMessage: (content, reasoning, stats, error) =>
     set((s) => {
       if (!s.currentConversation) return {};
       const msg: Message = {
@@ -395,6 +434,7 @@ export const useStore = create<AppState>((set, get) => ({
         reasoning,
         model: s.currentConversation.model,
         stats,
+        error,
       };
       return {
         currentConversation: {

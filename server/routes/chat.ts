@@ -3,6 +3,11 @@ import OpenAI from 'openai';
 
 export const chatRouter = Router();
 
+const configuredFirstChunkTimeoutMs = Number(process.env.DEEPSEEK_FIRST_CHUNK_TIMEOUT_MS);
+const FIRST_CHUNK_TIMEOUT_MS = Number.isFinite(configuredFirstChunkTimeoutMs)
+  ? configuredFirstChunkTimeoutMs
+  : 30000;
+
 chatRouter.post('/', async (req, res) => {
   const { messages, model, systemPrompt, params, thinkingEnabled, thinkingLevel } = req.body as {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -41,6 +46,23 @@ chatRouter.post('/', async (req, res) => {
 
   const thinking = thinkingLevel ? thinkingLevel !== 'off' : thinkingEnabled !== false;
 
+  let responseClosed = false;
+  const upstreamController = new AbortController();
+  let firstChunkTimer: NodeJS.Timeout | undefined;
+
+  const clearFirstChunkTimer = () => {
+    if (firstChunkTimer) {
+      clearTimeout(firstChunkTimer);
+      firstChunkTimer = undefined;
+    }
+  };
+
+  res.on('close', () => {
+    responseClosed = true;
+    clearFirstChunkTimer();
+    upstreamController.abort();
+  });
+
   try {
     const requestBody: Record<string, unknown> = {
       model,
@@ -63,9 +85,17 @@ chatRouter.post('/', async (req, res) => {
     const { messages: _msgs, stream: _s, stream_options: _so, ...visibleParams } = requestBody;
     res.write(`data: ${JSON.stringify({ type: 'request_params', params: visibleParams })}\n\n`);
 
-    const stream = await (client.chat.completions.create as Function)(requestBody);
+    firstChunkTimer = setTimeout(() => {
+      upstreamController.abort();
+    }, FIRST_CHUNK_TIMEOUT_MS);
+
+    const stream = await (client.chat.completions.create as Function)(requestBody, {
+      signal: upstreamController.signal,
+    });
 
     for await (const chunk of stream) {
+      clearFirstChunkTimer();
+
       if (chunk.usage) {
         res.write(`data: ${JSON.stringify({ type: 'usage', usage: chunk.usage })}\n\n`);
       }
@@ -84,12 +114,28 @@ chatRouter.post('/', async (req, res) => {
 
     }
 
-    res.write('data: [DONE]\n\n');
+    if (!responseClosed) {
+      res.write('data: [DONE]\n\n');
+    }
     res.end();
   } catch (err: unknown) {
+    clearFirstChunkTimer();
+    if (responseClosed) return;
+
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Chat API error:', message);
-    res.write(`data: ${JSON.stringify({ type: 'error', error: message })}\n\n`);
+    const timedOut = upstreamController.signal.aborted && !responseClosed;
+    if (!timedOut) {
+      console.error('Chat API error:', message);
+    }
+
+    res.write(`data: ${JSON.stringify({
+      type: 'error',
+      code: timedOut ? 'upstream_timeout' : 'upstream_error',
+      title: timedOut ? '上游响应超时' : '请求失败',
+      error: timedOut
+        ? `DeepSeek ${model} 在 ${Math.max(1, Math.ceil(FIRST_CHUNK_TIMEOUT_MS / 1000))} 秒内没有返回首个数据块，请稍后重试或切换模型。`
+        : message,
+    })}\n\n`);
     res.end();
   }
 });

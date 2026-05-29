@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { Check, ChevronDown, ChevronUp, Copy, MessageSquareText, Pencil, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Copy, MessageSquareText, Pencil, RotateCcw } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import type { Message, MessageStats } from '~/store';
 import Markdown from './Markdown';
@@ -251,6 +251,30 @@ export default function MessageBubble({ message, model, assistantStats, isStream
         />
       )}
 
+      {message.error && (
+        <div className="group/error mb-3 max-w-2xl rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-950 shadow-sm shadow-amber-900/5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <AlertTriangle size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-medium">{message.error.title}</div>
+              <p className="mt-1 leading-6 text-amber-900/80">{message.error.message}</p>
+              {onRetry && !isStreaming && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg border border-amber-200 bg-white/70 px-3 text-xs font-medium text-amber-900 transition-colors hover:bg-white"
+                >
+                  <RotateCcw size={14} />
+                  重试
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {message.content ? (
         <div className="group/output">
           <div
@@ -288,7 +312,8 @@ export default function MessageBubble({ message, model, assistantStats, isStream
         </div>
       ) : (
         isStreaming &&
-        !message.reasoning && <span className="result-thinking text-gray-400 text-sm" />
+        !message.reasoning &&
+        !message.error && <span className="result-thinking text-gray-400 text-sm" />
       )}
     </div>
   );
