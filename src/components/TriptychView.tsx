@@ -32,10 +32,22 @@ import TokenDetailPopup from './TokenDetailPopup';
 import ModelParamsPopup from './ModelParamsPopup';
 
 const NEW_PROMPT_KEY = '__new_prompt__';
+const PANEL_TITLE_WIDTH = 86;
+const PANEL_MIN_WIDTH = PANEL_TITLE_WIDTH;
+const DIVIDER_WIDTH = 1;
+const SNAP_DISTANCE = 18;
+const KEYBOARD_RESIZE_STEP = 24;
+const KEYBOARD_RESIZE_STEP_LARGE = 72;
+
+type PanelWidths = [number, number, number];
+type DividerIndex = 0 | 1;
+
+const DEFAULT_PANEL_WIDTHS: PanelWidths = [1 / 3, 1 / 3, 1 / 3];
 
 export interface TriptychUiState {
   selectedByConversation: Record<string, string>;
   draftsByConversation: Record<string, Record<string, string>>;
+  panelWidthsByConversation: Record<string, PanelWidths>;
 }
 
 interface Props {
@@ -54,6 +66,102 @@ function modelShortName(model?: string) {
 
 function formatTokens(tokens?: number, estimated?: boolean) {
   return `${estimated ? '~' : ''}${tokens ?? 0}t`;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizePanelWidths(widths?: PanelWidths): PanelWidths {
+  if (!widths) return DEFAULT_PANEL_WIDTHS;
+  const next = widths.map((width) => (Number.isFinite(width) && width > 0 ? width : 0));
+  const total = next.reduce((sum, width) => sum + width, 0);
+  if (total <= 0) return DEFAULT_PANEL_WIDTHS;
+  return [next[0] / total, next[1] / total, next[2] / total];
+}
+
+function constrainPanelWidths(widths: PanelWidths, availableWidth: number): PanelWidths {
+  if (availableWidth <= PANEL_MIN_WIDTH * 3) return DEFAULT_PANEL_WIDTHS;
+
+  const pixels = normalizePanelWidths(widths).map((width) => width * availableWidth);
+  const locked = [false, false, false];
+
+  for (let i = 0; i < 3; i += 1) {
+    const remainingIndexes = pixels
+      .map((_, index) => index)
+      .filter((index) => !locked[index]);
+    const tooSmall = remainingIndexes.filter((index) => pixels[index] < PANEL_MIN_WIDTH);
+    if (!tooSmall.length) break;
+
+    for (const index of tooSmall) {
+      pixels[index] = PANEL_MIN_WIDTH;
+      locked[index] = true;
+    }
+
+    const remainingWidth = availableWidth - locked.reduce(
+      (sum, isLocked, index) => sum + (isLocked ? pixels[index] : 0),
+      0,
+    );
+    const unlocked = pixels.map((_, index) => index).filter((index) => !locked[index]);
+    const unlockedTotal = unlocked.reduce((sum, index) => sum + pixels[index], 0);
+
+    if (!unlocked.length || remainingWidth <= 0) break;
+    for (const index of unlocked) {
+      pixels[index] = unlockedTotal > 0
+        ? (pixels[index] / unlockedTotal) * remainingWidth
+        : remainingWidth / unlocked.length;
+    }
+  }
+
+  return [pixels[0] / availableWidth, pixels[1] / availableWidth, pixels[2] / availableWidth];
+}
+
+function snapToDefault(value: number, target: number, min: number, max: number) {
+  if (Math.abs(value - target) <= SNAP_DISTANCE) {
+    return clamp(target, min, max);
+  }
+
+  return value;
+}
+
+function resizePanelWidths(
+  widths: PanelWidths,
+  divider: DividerIndex,
+  deltaX: number,
+  availableWidth: number,
+): PanelWidths {
+  const pixels = constrainPanelWidths(widths, availableWidth).map((width) => width * availableWidth);
+
+  if (divider === 0) {
+    const pairWidth = pixels[0] + pixels[1];
+    const min = PANEL_MIN_WIDTH;
+    const max = pairWidth - PANEL_MIN_WIDTH;
+    const nextInputWidth = snapToDefault(
+      clamp(pixels[0] + deltaX, min, max),
+      availableWidth / 3,
+      min,
+      max,
+    );
+    pixels[0] = nextInputWidth;
+    pixels[1] = pairWidth - nextInputWidth;
+  } else {
+    const pairWidth = pixels[1] + pixels[2];
+    const min = PANEL_MIN_WIDTH;
+    const max = pairWidth - PANEL_MIN_WIDTH;
+    let nextReasoningWidth = clamp(pixels[1] + deltaX, min, max);
+    const nextBoundary = pixels[0] + nextReasoningWidth;
+    const snappedBoundary = snapToDefault(
+      nextBoundary,
+      (availableWidth / 3) * 2,
+      pixels[0] + min,
+      pixels[0] + max,
+    );
+    nextReasoningWidth = snappedBoundary - pixels[0];
+    pixels[1] = nextReasoningWidth;
+    pixels[2] = pairWidth - nextReasoningWidth;
+  }
+
+  return [pixels[0] / availableWidth, pixels[1] / availableWidth, pixels[2] / availableWidth];
 }
 
 function IconButton({
@@ -179,6 +287,10 @@ function Footer({
       </div>
     </footer>
   );
+}
+
+function BlankFooter() {
+  return <footer className="h-10 shrink-0 border-t border-[#eeeae2]" />;
 }
 
 function FooterCopyButton({ content }: { content: string }) {
@@ -442,6 +554,50 @@ function ErrorPanel({ message }: { message: Message }) {
   );
 }
 
+function ResizeHandle({
+  divider,
+  dragging,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onKeyDown,
+  onDoubleClick,
+}: {
+  divider: DividerIndex;
+  dragging: boolean;
+  onPointerDown: (divider: DividerIndex, event: React.PointerEvent<HTMLDivElement>) => void;
+  onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onKeyDown: (divider: DividerIndex, event: React.KeyboardEvent<HTMLDivElement>) => void;
+  onDoubleClick: () => void;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={divider === 0 ? '调整输入和思考栏宽度' : '调整思考和输出栏宽度'}
+      tabIndex={0}
+      onPointerDown={(event) => onPointerDown(divider, event)}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onKeyDown={(event) => onKeyDown(divider, event)}
+      onDoubleClick={onDoubleClick}
+      className={`group relative z-30 min-h-0 w-px cursor-col-resize touch-none bg-[#eeeae2] outline-none transition-colors hover:bg-[#8fa0b2] focus-visible:bg-[#0385FF] ${
+        dragging ? 'bg-[#0385FF]' : ''
+      }`}
+      title="拖动调整宽度，双击恢复三等分"
+    >
+      <div className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2" />
+      <div
+        className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors group-hover:bg-[#8fa0b2] group-focus-visible:bg-[#0385FF] ${
+          dragging ? 'bg-[#0385FF]' : ''
+        }`}
+      />
+    </div>
+  );
+}
+
 export default function TriptychView({
   send,
   editAndResend,
@@ -521,6 +677,56 @@ export default function TriptychView({
   const inputScrollbar = useScrollbarActivity();
   const reasoningScrollbar = useScrollbarActivity();
   const outputScrollbar = useScrollbarActivity();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{
+    divider: DividerIndex;
+    startX: number;
+    startWidths: PanelWidths;
+    availableWidth: number;
+  } | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [draggingDivider, setDraggingDivider] = useState<DividerIndex | null>(null);
+
+  const rawPanelWidths = conversationId
+    ? uiState.panelWidthsByConversation?.[conversationId]
+    : undefined;
+  const panelAvailableWidth = Math.max(
+    containerWidth - (DIVIDER_WIDTH * 2),
+    PANEL_MIN_WIDTH * 3,
+  );
+  const panelWidths = useMemo(
+    () => constrainPanelWidths(normalizePanelWidths(rawPanelWidths), panelAvailableWidth),
+    [panelAvailableWidth, rawPanelWidths],
+  );
+  const panelPixels = panelWidths.map((width) => width * panelAvailableWidth);
+  const panelCollapsed = panelPixels.map((width) => width <= PANEL_MIN_WIDTH + 2);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+    resizeObserver.observe(element);
+    setContainerWidth(element.getBoundingClientRect().width);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (draggingDivider === null) return undefined;
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [draggingDivider]);
 
   const setSelectedKey = (key: string) => {
     if (!conversationId) return;
@@ -551,6 +757,71 @@ export default function TriptychView({
         },
       };
     });
+  };
+
+  const setPanelWidths = useCallback((widths: PanelWidths) => {
+    if (!conversationId) return;
+    setUiState((prev) => ({
+      ...prev,
+      panelWidthsByConversation: {
+        ...(prev.panelWidthsByConversation ?? {}),
+        [conversationId]: widths,
+      },
+    }));
+  }, [conversationId, setUiState]);
+
+  const resetPanelWidths = useCallback(() => {
+    setPanelWidths(DEFAULT_PANEL_WIDTHS);
+  }, [setPanelWidths]);
+
+  const handleDividerPointerDown = (
+    divider: DividerIndex,
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      divider,
+      startX: event.clientX,
+      startWidths: panelWidths,
+      availableWidth: panelAvailableWidth,
+    };
+    setDraggingDivider(divider);
+  };
+
+  const handleDividerPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState) return;
+
+    event.preventDefault();
+    setPanelWidths(resizePanelWidths(
+      dragState.startWidths,
+      dragState.divider,
+      event.clientX - dragState.startX,
+      dragState.availableWidth,
+    ));
+  };
+
+  const stopDividerDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStateRef.current) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragStateRef.current = null;
+    setDraggingDivider(null);
+  };
+
+  const handleDividerKeyDown = (
+    divider: DividerIndex,
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+    event.preventDefault();
+    const direction = event.key === 'ArrowLeft' ? -1 : 1;
+    const step = event.shiftKey ? KEYBOARD_RESIZE_STEP_LARGE : KEYBOARD_RESIZE_STEP;
+    setPanelWidths(resizePanelWidths(panelWidths, divider, direction * step, panelAvailableWidth));
   };
 
   const clearDraft = (key: string) => {
@@ -595,10 +866,14 @@ export default function TriptychView({
 
   return (
     <div
+      ref={containerRef}
       onScroll={shellScrollbar.onScroll}
-      className={`scrollbar-auto-hide grid min-h-0 flex-1 grid-cols-[repeat(3,minmax(18rem,1fr))] overflow-x-auto overflow-y-hidden border-t border-[#eeeae2] bg-[#fbfaf7] ${shellScrollbar.className}`}
+      className={`scrollbar-auto-hide grid min-h-0 flex-1 overflow-x-auto overflow-y-hidden border-t border-[#eeeae2] bg-[#fbfaf7] ${shellScrollbar.className}`}
+      style={{
+        gridTemplateColumns: `minmax(${PANEL_MIN_WIDTH}px, ${panelWidths[0]}fr) ${DIVIDER_WIDTH}px minmax(${PANEL_MIN_WIDTH}px, ${panelWidths[1]}fr) ${DIVIDER_WIDTH}px minmax(${PANEL_MIN_WIDTH}px, ${panelWidths[2]}fr)`,
+      }}
     >
-      <section className="flex min-h-0 min-w-0 flex-col border-r border-[#eeeae2]">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="relative z-20 flex h-12 shrink-0 items-center border-b border-[#eeeae2] bg-[#fbfaf7]">
           <PanelTitle icon={<TextCursorInput size={15} />} label="输入" separated />
           <IconButton title="上一个 Prompt" disabled={!canGoPrev} onClick={() => setSelectedKey(navKeys[navIndex - 1])}>
@@ -636,24 +911,43 @@ export default function TriptychView({
           )}
         </div>
 
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(activeKey, event.target.value, originalContent)}
-          placeholder="输入消息..."
-          readOnly={isStreaming}
-          onScroll={inputScrollbar.onScroll}
-          className={`scrollbar-auto-hide min-h-0 flex-1 resize-none overflow-y-auto bg-transparent px-5 py-5 text-[15px] leading-7 text-[#2f2f2d] outline-none placeholder:text-gray-300 ${inputScrollbar.className}`}
-          spellCheck={false}
-        />
-        <InputStatsFooter
-          model={model}
-          content={draft}
-          stats={stats}
-          useEstimate={dirty || isNewPrompt || !stats?.promptTokens}
-        />
+        {panelCollapsed[0] ? (
+          <>
+            <div className="min-h-0 flex-1" />
+            <BlankFooter />
+          </>
+        ) : (
+          <>
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(activeKey, event.target.value, originalContent)}
+              placeholder="输入消息..."
+              readOnly={isStreaming}
+              onScroll={inputScrollbar.onScroll}
+              className={`scrollbar-auto-hide min-h-0 flex-1 resize-none overflow-y-auto bg-transparent px-5 py-5 text-[15px] leading-7 text-[#2f2f2d] outline-none placeholder:text-gray-300 ${inputScrollbar.className}`}
+              spellCheck={false}
+            />
+            <InputStatsFooter
+              model={model}
+              content={draft}
+              stats={stats}
+              useEstimate={dirty || isNewPrompt || !stats?.promptTokens}
+            />
+          </>
+        )}
       </section>
 
-      <section className="flex min-h-0 min-w-0 flex-col border-r border-[#eeeae2]">
+      <ResizeHandle
+        divider={0}
+        dragging={draggingDivider === 0}
+        onPointerDown={handleDividerPointerDown}
+        onPointerMove={handleDividerPointerMove}
+        onPointerUp={stopDividerDrag}
+        onKeyDown={handleDividerKeyDown}
+        onDoubleClick={resetPanelWidths}
+      />
+
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="flex h-12 shrink-0 items-center border-b border-[#eeeae2] bg-[#fbfaf7]">
           <PanelTitle
             icon={<Brain size={15} />}
@@ -661,22 +955,41 @@ export default function TriptychView({
             streaming={isShowingStreaming && Boolean(streamingReasoning)}
           />
         </div>
-        <div
-          onScroll={reasoningScrollbar.onScroll}
-          className={`scrollbar-auto-hide min-h-0 flex-1 overflow-y-auto ${reasoningScrollbar.className}`}
-        >
-          {assistantMessage?.reasoning ? (
-            <pre className="whitespace-pre-wrap break-words px-5 py-5 font-sans text-[14px] leading-7 text-gray-600">
-              {assistantMessage.reasoning}
-            </pre>
-          ) : (
-            <EmptyPanel label={isShowingStreaming ? '等待思考内容...' : '暂无思考内容'} />
-          )}
-        </div>
-        <ReasoningStatsFooter model={model} content={assistantMessage?.reasoning ?? ''} stats={stats} />
+        {panelCollapsed[1] ? (
+          <>
+            <div className="min-h-0 flex-1" />
+            <BlankFooter />
+          </>
+        ) : (
+          <>
+            <div
+              onScroll={reasoningScrollbar.onScroll}
+              className={`scrollbar-auto-hide min-h-0 flex-1 overflow-y-auto ${reasoningScrollbar.className}`}
+            >
+              {assistantMessage?.reasoning ? (
+                <pre className="whitespace-pre-wrap break-words px-5 py-5 font-sans text-[14px] leading-7 text-gray-600">
+                  {assistantMessage.reasoning}
+                </pre>
+              ) : (
+                <EmptyPanel label={isShowingStreaming ? '等待思考内容...' : '暂无思考内容'} />
+              )}
+            </div>
+            <ReasoningStatsFooter model={model} content={assistantMessage?.reasoning ?? ''} stats={stats} />
+          </>
+        )}
       </section>
 
-      <section className="flex min-h-0 min-w-0 flex-col">
+      <ResizeHandle
+        divider={1}
+        dragging={draggingDivider === 1}
+        onPointerDown={handleDividerPointerDown}
+        onPointerMove={handleDividerPointerMove}
+        onPointerUp={stopDividerDrag}
+        onKeyDown={handleDividerKeyDown}
+        onDoubleClick={resetPanelWidths}
+      />
+
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden">
         <div className="flex h-12 shrink-0 items-center border-b border-[#eeeae2] bg-[#fbfaf7]">
           <PanelTitle
             icon={<FileOutput size={15} />}
@@ -684,28 +997,37 @@ export default function TriptychView({
             streaming={isShowingStreaming && Boolean(streamingContent)}
           />
         </div>
-        <div
-          onScroll={outputScrollbar.onScroll}
-          className={`scrollbar-auto-hide min-h-0 flex-1 overflow-y-auto ${outputScrollbar.className}`}
-        >
-          {assistantMessage?.error && !assistantMessage.content && (
-            <ErrorPanel message={assistantMessage} />
-          )}
-          {assistantMessage?.content ? (
+        {panelCollapsed[2] ? (
+          <>
+            <div className="min-h-0 flex-1" />
+            <BlankFooter />
+          </>
+        ) : (
+          <>
             <div
-              className={`prose max-w-none px-5 py-5 text-[14px] leading-7 text-[#1f1f1d] ${
-                isShowingStreaming ? 'result-streaming' : ''
-              }`}
+              onScroll={outputScrollbar.onScroll}
+              className={`scrollbar-auto-hide min-h-0 flex-1 overflow-y-auto ${outputScrollbar.className}`}
             >
-              <Markdown content={assistantMessage.content} />
+              {assistantMessage?.error && !assistantMessage.content && (
+                <ErrorPanel message={assistantMessage} />
+              )}
+              {assistantMessage?.content ? (
+                <div
+                  className={`prose max-w-none px-5 py-5 text-[14px] leading-7 text-[#1f1f1d] ${
+                    isShowingStreaming ? 'result-streaming' : ''
+                  }`}
+                >
+                  <Markdown content={assistantMessage.content} />
+                </div>
+              ) : (
+                !assistantMessage?.error && (
+                  <EmptyPanel label={isShowingStreaming ? '等待输出内容...' : '暂无输出内容'} />
+                )
+              )}
             </div>
-          ) : (
-            !assistantMessage?.error && (
-              <EmptyPanel label={isShowingStreaming ? '等待输出内容...' : '暂无输出内容'} />
-            )
-          )}
-        </div>
-        <OutputStatsFooter model={model} content={assistantMessage?.content ?? ''} stats={stats} />
+            <OutputStatsFooter model={model} content={assistantMessage?.content ?? ''} stats={stats} />
+          </>
+        )}
       </section>
     </div>
   );

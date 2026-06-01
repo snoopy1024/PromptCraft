@@ -10,6 +10,7 @@ import { getPromptTurns } from '~/utils/conversationTurns';
 const INITIAL_TRIPTYCH_UI_STATE: TriptychUiState = {
   selectedByConversation: {},
   draftsByConversation: {},
+  panelWidthsByConversation: {},
 };
 
 export default function ChatView() {

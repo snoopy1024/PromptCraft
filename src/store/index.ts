@@ -239,7 +239,7 @@ export const useStore = create<AppState>((set, get) => ({
   streamingReasoning: '',
   streamingError: undefined,
   streamingStats: {},
-  sidebarOpen: true,
+  sidebarOpen: false,
   chatViewMode: readChatViewMode(),
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
