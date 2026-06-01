@@ -63,6 +63,8 @@ export interface ConversationSummary {
   updatedAt: string;
 }
 
+export type ChatViewMode = 'dialogue' | 'triptych';
+
 const DEFAULT_PARAMS: ModelParams = {
   temperature: 1.0,
   top_p: 1.0,
@@ -73,6 +75,7 @@ const DEFAULT_MODEL = 'deepseek-v4-flash';
 const DEFAULT_THINKING_LEVEL: ThinkingLevel = 'high';
 const MODEL_SETTINGS_STORAGE_KEY = 'promptcraft:model-settings';
 const LAST_MODEL_STORAGE_KEY = 'promptcraft:last-model';
+const CHAT_VIEW_MODE_STORAGE_KEY = 'promptcraft:chat-view-mode';
 
 interface StoredModelSettings {
   params?: Partial<ModelParams>;
@@ -115,6 +118,21 @@ function readLastModel() {
 function writeLastModel(model: string) {
   if (!hasLocalStorage()) return;
   window.localStorage.setItem(LAST_MODEL_STORAGE_KEY, model);
+}
+
+function isChatViewMode(value: unknown): value is ChatViewMode {
+  return value === 'dialogue' || value === 'triptych';
+}
+
+function readChatViewMode(): ChatViewMode {
+  if (!hasLocalStorage()) return 'dialogue';
+  const stored = window.localStorage.getItem(CHAT_VIEW_MODE_STORAGE_KEY);
+  return isChatViewMode(stored) ? stored : 'dialogue';
+}
+
+function writeChatViewMode(mode: ChatViewMode) {
+  if (!hasLocalStorage()) return;
+  window.localStorage.setItem(CHAT_VIEW_MODE_STORAGE_KEY, mode);
 }
 
 function readModelSettings(model: string) {
@@ -179,8 +197,10 @@ interface AppState {
   streamingError?: MessageError;
   streamingStats: MessageStats;
   sidebarOpen: boolean;
+  chatViewMode: ChatViewMode;
 
   setSidebarOpen: (open: boolean) => void;
+  setChatViewMode: (mode: ChatViewMode) => void;
   setTitle: (title: string) => void;
   setModel: (model: string) => void;
   setSystemPrompt: (prompt: string) => void;
@@ -220,8 +240,14 @@ export const useStore = create<AppState>((set, get) => ({
   streamingError: undefined,
   streamingStats: {},
   sidebarOpen: true,
+  chatViewMode: readChatViewMode(),
 
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setChatViewMode: (mode) => {
+    writeChatViewMode(mode);
+    set({ chatViewMode: mode });
+  },
 
   setTitle: (title) =>
     set((s) => ({

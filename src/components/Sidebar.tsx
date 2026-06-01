@@ -79,22 +79,22 @@ export default function Sidebar() {
 
   if (!sidebarOpen) {
     return (
-      <div className="fixed left-3 top-3 z-50 flex flex-col gap-3">
+      <aside className="flex h-full w-[68px] flex-shrink-0 flex-col items-center border-r border-[#eeeae2] bg-[#fbfaf7] py-3">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
           title="展开侧边栏"
         >
           <PanelLeft size={20} />
         </button>
         <button
           onClick={newConversation}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="mt-3 flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
           title="新对话"
         >
           <PlusCircle size={20} strokeWidth={2.25} />
         </button>
-      </div>
+      </aside>
     );
   }
 

@@ -6,9 +6,10 @@ import { Zap } from 'lucide-react';
 interface Props {
   onRetry: (assistantId: string) => void;
   onEditSend: (messageId: string, newContent: string) => void;
+  onOpenTriptych: (messageId: string) => void;
 }
 
-export default function MessageList({ onRetry, onEditSend }: Props) {
+export default function MessageList({ onRetry, onEditSend, onOpenTriptych }: Props) {
   const {
     currentConversation,
     isStreaming,
@@ -71,6 +72,7 @@ export default function MessageList({ onRetry, onEditSend }: Props) {
                 assistantStats={assistantStats}
                 onRetry={msg.role === 'assistant' ? () => onRetry(msg.id) : undefined}
                 onEditSend={msg.role === 'user' ? onEditSend : undefined}
+                onOpenTriptych={msg.role === 'user' ? () => onOpenTriptych(msg.id) : undefined}
               />
             );
           })}

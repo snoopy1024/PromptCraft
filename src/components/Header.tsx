@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Columns3, MessageSquareText } from 'lucide-react';
 import { useStore } from '~/store';
 
-export default function Header() {
-  const { currentConversation, sidebarOpen, setTitle, saveConversation } = useStore();
+interface Props {
+  onOpenTriptych?: () => void;
+}
+
+export default function Header({ onOpenTriptych }: Props) {
+  const {
+    currentConversation,
+    chatViewMode,
+    setChatViewMode,
+    setTitle,
+    saveConversation,
+  } = useStore();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,11 +62,7 @@ export default function Header() {
   };
 
   return (
-    <header
-      className={`flex h-[60px] shrink-0 items-center border-b border-transparent bg-[#fbfaf7] px-4 ${
-        sidebarOpen ? '' : 'pl-16'
-      }`}
-    >
+    <header className="flex h-[60px] shrink-0 items-center justify-between gap-4 border-b border-transparent bg-[#fbfaf7] px-4">
       <div className="flex min-w-0 items-center">
         {editing && canEditTitle ? (
           <input
@@ -82,6 +89,31 @@ export default function Header() {
           </span>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (chatViewMode === 'triptych') {
+            setChatViewMode('dialogue');
+          } else {
+            onOpenTriptych?.();
+          }
+        }}
+        className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-[#2f2f2d] outline-none transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-gray-300"
+        title={chatViewMode === 'triptych' ? '切换到对话式' : '切换到三段式'}
+      >
+        {chatViewMode === 'triptych' ? (
+          <>
+            <MessageSquareText size={18} />
+            对话式
+          </>
+        ) : (
+          <>
+            <Columns3 size={18} />
+            三段式
+          </>
+        )}
+      </button>
     </header>
   );
 }

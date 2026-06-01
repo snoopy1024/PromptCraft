@@ -267,7 +267,7 @@ export function useChat() {
       const nextConversation = useStore.getState().currentConversation;
       if (!nextConversation) return;
 
-      await persistConversation(nextConversation);
+      void persistConversation(nextConversation);
       await runCompletion(nextConversation);
     },
     [persistConversation, runCompletion],
@@ -281,7 +281,7 @@ export function useChat() {
       const nextConversation = state.prepareAssistantRetry(assistantId);
       if (!nextConversation) return;
 
-      await persistConversation(nextConversation);
+      void persistConversation(nextConversation);
       await runCompletion(nextConversation);
     },
     [persistConversation, runCompletion],
@@ -295,7 +295,7 @@ export function useChat() {
       const nextConversation = state.updateUserMessageAndTruncate(messageId, newContent);
       if (!nextConversation) return;
 
-      await persistConversation(nextConversation);
+      void persistConversation(nextConversation);
       await runCompletion(nextConversation);
     },
     [persistConversation, runCompletion],

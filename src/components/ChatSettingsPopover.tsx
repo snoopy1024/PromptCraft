@@ -35,6 +35,11 @@ interface SliderFieldProps {
   onChange: (value: number) => void;
 }
 
+interface ChatSettingsPopoverProps {
+  placement?: 'above' | 'below';
+  variant?: 'input' | 'toolbar';
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -75,7 +80,10 @@ function SliderField({ label, value, min, max, step, disabled, onChange }: Slide
   );
 }
 
-export default function ChatSettingsPopover() {
+export default function ChatSettingsPopover({
+  placement = 'above',
+  variant = 'input',
+}: ChatSettingsPopoverProps) {
   const {
     currentConversation,
     setModel,
@@ -121,9 +129,21 @@ export default function ChatSettingsPopover() {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1.5 text-sm text-gray-600 outline-none transition-colors hover:border-gray-200 hover:bg-gray-50 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-gray-300"
+        className={
+          variant === 'toolbar'
+            ? 'flex h-12 min-w-0 max-w-full items-center gap-1.5 border border-transparent px-2.5 text-sm text-gray-600 outline-none transition-colors hover:bg-black/[0.02] hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-gray-300'
+            : 'flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1.5 text-sm text-gray-600 outline-none transition-colors hover:border-gray-200 hover:bg-gray-50 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-gray-300'
+        }
         title="模型与参数"
       >
+        {variant === 'toolbar' && (
+          <img
+            src={deepSeekIcon}
+            alt=""
+            className="h-[18px] w-[18px] shrink-0 rounded-full object-contain"
+            draggable={false}
+          />
+        )}
         <span className="truncate font-medium">{selected.shortName}</span>
         <span className="hidden shrink-0 pl-1 text-gray-400 sm:inline">{thinkingLabel}</span>
         <ChevronDown
@@ -134,7 +154,9 @@ export default function ChatSettingsPopover() {
 
       {open && (
         <div
-          className="absolute bottom-full right-0 z-50 mb-3 w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl shadow-gray-900/10 sm:w-[440px]"
+          className={`absolute right-0 z-50 w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl shadow-gray-900/10 sm:w-[440px] ${
+            placement === 'below' ? 'top-full mt-3' : 'bottom-full mb-3'
+          }`}
           style={{ maxHeight: 'min(72vh, 640px)' }}
         >
           <div

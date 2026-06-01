@@ -4,8 +4,22 @@
 html, body, #root {
   height: 100%;
   margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: #fbfaf7;
   color: #2f2f2d;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+.overflow-auto,
+.overflow-x-auto,
+.overflow-y-auto {
+  overscroll-behavior: contain;
 }
 
 /* Streaming cursor animation */
@@ -56,17 +70,35 @@ html, body, #root {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+* {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
 }
-::-webkit-scrollbar-track {
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
   background: transparent;
 }
-::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
+
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover {
+
+*:hover {
+  scrollbar-color: #d1d5db transparent;
+}
+
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+*::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
 
@@ -85,7 +117,8 @@ html, body, #root {
 }
 
 .scrollbar-auto-hide::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 .scrollbar-auto-hide::-webkit-scrollbar-track {
@@ -103,6 +136,11 @@ html, body, #root {
 
 .scrollbar-auto-hide.scrollbar-active::-webkit-scrollbar-thumb {
   background: #d1d5db;
+}
+
+.prose pre::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
 }
 
 /* Code blocks */

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, Copy, MessageSquareText, Pencil, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Columns3, Copy, MessageSquareText, Pencil, RotateCcw } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import type { Message, MessageStats } from '~/store';
 import Markdown from './Markdown';
@@ -16,12 +16,13 @@ interface Props {
   isStreaming?: boolean;
   onRetry?: () => void;
   onEditSend?: (messageId: string, newContent: string) => void;
+  onOpenTriptych?: () => void;
 }
 
 const COLLAPSE_CHAR_LIMIT = 420;
 const COLLAPSE_LINE_LIMIT = 7;
 
-export default function MessageBubble({ message, model, assistantStats, isStreaming, onRetry, onEditSend }: Props) {
+export default function MessageBubble({ message, model, assistantStats, isStreaming, onRetry, onEditSend, onOpenTriptych }: Props) {
   const isUser = message.role === 'user';
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -117,7 +118,11 @@ export default function MessageBubble({ message, model, assistantStats, isStream
             <div className="relative">
               <div
                 className={`whitespace-pre-wrap break-words ${
-                  shouldCollapse && !expanded ? 'max-h-36 overflow-hidden' : ''
+                  shouldCollapse && !expanded
+                    ? 'max-h-36 overflow-hidden'
+                    : shouldCollapse && expanded
+                      ? 'pb-12'
+                      : ''
                 }`}
               >
                 {message.content}
@@ -127,30 +132,35 @@ export default function MessageBubble({ message, model, assistantStats, isStream
               )}
             </div>
 
-            {shouldCollapse && (
+            {shouldCollapse && !expanded && (
               <button
                 type="button"
                 aria-expanded={expanded}
                 onClick={() => setExpanded((value) => !value)}
                 className="mt-3 flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800"
               >
-                {expanded ? (
-                  <>
-                    收起
-                    <ChevronUp size={15} />
-                  </>
-                ) : (
-                  <>
-                    展开
-                    <ChevronDown size={15} />
-                  </>
-                )}
+                展开
+                <ChevronDown size={15} />
               </button>
+            )}
+
+            {shouldCollapse && expanded && (
+              <div className="sticky bottom-3 z-10 -mt-10 flex justify-start">
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => setExpanded(false)}
+                  className="inline-flex h-8 items-center gap-1 rounded-full border border-black/5 bg-[#efede7]/95 px-3 text-sm font-medium text-gray-600 shadow-[0_8px_24px_rgba(0,0,0,0.10)] backdrop-blur transition-colors hover:bg-[#e7e4dd] hover:text-gray-900"
+                >
+                  收起
+                  <ChevronUp size={15} />
+                </button>
+              </div>
             )}
           </div>
         </div>
 
-        <div className="pointer-events-none mt-1.5 flex items-center justify-end gap-3 text-xs text-gray-400 opacity-0 transition-opacity group-hover/user:pointer-events-auto group-hover/user:opacity-100 group-focus-within/user:pointer-events-auto group-focus-within/user:opacity-100">
+        <div className="mt-1.5 flex items-center justify-end gap-3 text-xs text-gray-400 opacity-0 transition-opacity group-hover/user:opacity-100 group-focus-within/user:opacity-100">
           <span className="relative">
             <button
               type="button"
@@ -226,6 +236,14 @@ export default function MessageBubble({ message, model, assistantStats, isStream
               title="编辑"
             >
               <Pencil size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenTriptych}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-black/[0.04] hover:text-gray-700"
+              title="在三段式中查看"
+            >
+              <Columns3 size={15} />
             </button>
             <button
               type="button"
